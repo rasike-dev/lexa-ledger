@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "section": {
+      "global": "Global",
+      "loanWorkspace": "Kredit-Arbeitsbereich"
+    },
+    "portfolio": "Portfolio",
+    "origination": "Origination",
+    "loan": {
+      "overview": "Übersicht",
+      "documents": "Dokumente",
+      "servicing": "Servicing",
+      "trading": "Trading",
+      "esg": "ESG"
+    },
+    "activeLoan": "Aktiver Kredit",
+    "actions": {
+      "openDrawer": "Panel öffnen",
+      "clearLoan": "Zurücksetzen"
+    }
+  }
+}

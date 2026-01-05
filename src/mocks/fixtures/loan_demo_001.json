@@ -1,0 +1,12 @@
+{
+  "id": "demo-loan-001",
+  "borrower": "GreenSteel Manufacturing plc",
+  "agentBank": "Example Agent Bank",
+  "currency": "EUR",
+  "facilityAmount": 250000000,
+  "marginBps": 175,
+  "status": "Active",
+  "esgClauses": 3,
+  "covenants": 5,
+  "lastUpdatedAt": "2026-01-04T10:30:00.000Z"
+}

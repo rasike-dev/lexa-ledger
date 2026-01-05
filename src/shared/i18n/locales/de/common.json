@@ -1,0 +1,32 @@
+{
+  "searchPlaceholder": "Suche nach Krediten, Parteien, Klauseln…",
+  "close": "Schließen",
+  "role": {
+    "agent": "Agent",
+    "lender": "Kreditgeber",
+    "borrower": "Kreditnehmer",
+    "buyer": "Käufer"
+  },
+  "theme": {
+    "dark": "Dunkel",
+    "light": "Hell"
+  },
+  "drawer": {
+    "noSelection": "Wähle einen Kredit, um Übersicht und Audit-Verlauf zu sehen.",
+    "loanSnapshot": "Kreditübersicht",
+    "auditTimeline": "Audit-Zeitleiste",
+    "audit": {
+      "placeholder1": "Vertrag ingestiert (simuliert)",
+      "placeholder2": "Covenants extrahiert (simuliert)",
+      "placeholder3": "ESG-Pflichten indexiert (simuliert)"
+    },
+    "actions": {
+      "exportSummary": "Zusammenfassung exportieren"
+    }
+  },
+  "status": {
+    "dataset": "Datensatz",
+    "lastExtraction": "Letzte Extraktion",
+    "never": "Nie"
+  }
+}

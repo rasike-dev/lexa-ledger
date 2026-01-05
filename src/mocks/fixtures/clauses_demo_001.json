@@ -1,0 +1,89 @@
+{
+  "loanId": "demo-loan-001",
+  "versions": [
+    {
+      "versionId": "agreement_v1",
+      "label": "Agreement v1",
+      "asOf": "2026-01-02T09:00:00.000Z"
+    },
+    {
+      "versionId": "agreement_v2",
+      "label": "Agreement v2 (Amended)",
+      "asOf": "2026-01-04T10:00:00.000Z"
+    }
+  ],
+  "clauses": [
+    {
+      "id": "cl-001",
+      "title": "Margin and pricing",
+      "tag": "PRICING",
+      "sourceRef": "doc:agreement_v2#p34",
+      "structured": {
+        "marginBps": 175,
+        "benchmark": "EURIBOR"
+      }
+    },
+    {
+      "id": "cl-002",
+      "title": "Leverage covenant",
+      "tag": "COVENANT",
+      "sourceRef": "doc:agreement_v2#p112",
+      "structured": {
+        "metric": "Net Leverage Ratio",
+        "threshold": 3.5,
+        "testFrequency": "Quarterly",
+        "changedFrom": 3.75
+      }
+    },
+    {
+      "id": "cl-003",
+      "title": "Information undertakings",
+      "tag": "REPORTING",
+      "sourceRef": "doc:agreement_v2#p141",
+      "structured": {
+        "items": [
+          "Quarterly compliance certificate",
+          "Quarterly financial statements",
+          "Annual audited accounts"
+        ],
+        "dueDaysAfterPeriodEnd": 60,
+        "changedFromDueDays": 75
+      }
+    },
+    {
+      "id": "cl-004",
+      "title": "Sustainability-linked KPIs",
+      "tag": "ESG",
+      "sourceRef": "doc:agreement_v2#p188",
+      "structured": {
+        "kpis": ["Scope 1+2 emissions intensity", "Renewable energy share"],
+        "reportingFrequency": "Annual"
+      }
+    },
+    {
+      "id": "cl-005",
+      "title": "Events of Default",
+      "tag": "EOD",
+      "sourceRef": "doc:agreement_v2#p210",
+      "structured": {
+        "summary": "Standard events of default including non-payment, breach, insolvency."
+      }
+    }
+  ],
+  "amendmentSummary": [
+    {
+      "field": "Leverage covenant threshold",
+      "from": "3.75x",
+      "to": "3.50x",
+      "severity": "HIGH",
+      "impacts": ["Servicing: covenant monitoring", "Trading: diligence risk flag"]
+    },
+    {
+      "field": "Reporting due days (quarterly)",
+      "from": "75 days",
+      "to": "60 days",
+      "severity": "MEDIUM",
+      "impacts": ["Servicing: obligations calendar", "Borrower: reporting workload"]
+    }
+  ]
+}

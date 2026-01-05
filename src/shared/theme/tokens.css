@@ -1,0 +1,42 @@
+:root {
+  --bg: 255 255 255;
+  --fg: 17 24 39;
+  --muted: 107 114 128;
+  --border: 229 231 235;
+  --card: 249 250 251;
+
+  --primary: 37 99 235; /* semantic primary */
+  --danger: 220 38 38;
+  --warning: 245 158 11;
+  --success: 16 185 129;
+
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+.theme-dark {
+  --bg: 3 7 18;
+  --fg: 226 232 240;
+  --muted: 148 163 184;
+  --border: 30 41 59;
+  --card: 15 23 42;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+
+a {
+  color: rgb(var(--primary));
+}

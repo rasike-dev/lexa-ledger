@@ -1,0 +1,34 @@
+[
+  {
+    "id": "evt-001",
+    "type": "INGESTION_COMPLETED",
+    "timestamp": "2026-01-04T10:30:00.000Z",
+    "actor": "LEXA Extractor",
+    "summary": "Loan agreement ingested and Digital Loan Twin created",
+    "evidenceRef": "doc:agreement_v1"
+  },
+  {
+    "id": "evt-002",
+    "type": "CLAUSE_INDEXED",
+    "timestamp": "2026-01-04T10:32:00.000Z",
+    "actor": "LEXA Extractor",
+    "summary": "Covenant and reporting clauses indexed",
+    "evidenceRef": "clauses:index"
+  },
+  {
+    "id": "evt-003",
+    "type": "ESG_OBLIGATIONS_INDEXED",
+    "timestamp": "2026-01-04T10:34:00.000Z",
+    "actor": "LEXA Extractor",
+    "summary": "ESG obligations captured for monitoring",
+    "evidenceRef": "esg:obligations"
+  },
+  {
+    "id": "evt-004",
+    "type": "DILIGENCE_PACK_GENERATED",
+    "timestamp": "2026-01-04T11:05:00.000Z",
+    "actor": "Agent User",
+    "summary": "Trade diligence snapshot generated",
+    "evidenceRef": "trade:diligence_pack"
+  }
+]

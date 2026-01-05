@@ -1,0 +1,45 @@
+{
+  "loanId": "demo-loan-001",
+  "checklist": [
+    {
+      "id": "chk-001",
+      "title": "KYC / Parties verified",
+      "auto": true,
+      "statusBase": "PASS",
+      "statusStress": "PASS",
+      "sourceRef": "ops:kyc"
+    },
+    {
+      "id": "chk-002",
+      "title": "No open Events of Default",
+      "auto": true,
+      "statusBase": "PASS",
+      "statusStress": "REVIEW",
+      "sourceRef": "doc:agreement_v2#p210"
+    },
+    {
+      "id": "chk-003",
+      "title": "Covenant headroom acceptable",
+      "auto": true,
+      "statusBase": "PASS",
+      "statusStress": "FAIL",
+      "sourceRef": "servicing:covenants"
+    },
+    {
+      "id": "chk-004",
+      "title": "Reporting obligations up-to-date",
+      "auto": true,
+      "statusBase": "REVIEW",
+      "statusStress": "REVIEW",
+      "sourceRef": "doc:agreement_v2#p141"
+    },
+    {
+      "id": "chk-005",
+      "title": "ESG KPI evidence available",
+      "auto": false,
+      "statusBase": "REVIEW",
+      "statusStress": "REVIEW",
+      "sourceRef": "esg:evidence"
+    }
+  ]
+}

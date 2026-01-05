@@ -1,0 +1,58 @@
+{
+  "loanId": "demo-loan-001",
+  "covenants": [
+    {
+      "id": "cov-001",
+      "name": "Net Leverage Ratio",
+      "unit": "x",
+      "operator": "<=",
+      "threshold": 3.5,
+      "actualBase": 3.2,
+      "actualStress": 3.62,
+      "testFrequency": "Quarterly"
+    },
+    {
+      "id": "cov-002",
+      "name": "Interest Cover Ratio",
+      "unit": "x",
+      "operator": ">=",
+      "threshold": 4.0,
+      "actualBase": 4.6,
+      "actualStress": 3.9,
+      "testFrequency": "Quarterly"
+    },
+    {
+      "id": "cov-003",
+      "name": "Minimum Liquidity",
+      "unit": "EURm",
+      "operator": ">=",
+      "threshold": 25,
+      "actualBase": 31,
+      "actualStress": 24,
+      "testFrequency": "Monthly"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "obl-001",
+      "title": "Quarterly compliance certificate",
+      "dueDate": "2026-01-15T00:00:00.000Z",
+      "owner": "Borrower",
+      "status": "Pending"
+    },
+    {
+      "id": "obl-002",
+      "title": "Quarterly financial statements",
+      "dueDate": "2026-01-20T00:00:00.000Z",
+      "owner": "Borrower",
+      "status": "Pending"
+    },
+    {
+      "id": "obl-003",
+      "title": "ESG KPI evidence pack",
+      "dueDate": "2026-02-10T00:00:00.000Z",
+      "owner": "Borrower",
+      "status": "Planned"
+    }
+  ]
+}

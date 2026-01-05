@@ -1,0 +1,32 @@
+{
+  "searchPlaceholder": "Search loans, parties, clauses…",
+  "close": "Close",
+  "role": {
+    "agent": "Agent",
+    "lender": "Lender",
+    "borrower": "Borrower",
+    "buyer": "Buyer"
+  },
+  "theme": {
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "drawer": {
+    "noSelection": "Select a loan to see snapshot and audit history.",
+    "loanSnapshot": "Loan Snapshot",
+    "auditTimeline": "Audit Timeline",
+    "audit": {
+      "placeholder1": "Ingested agreement (simulated)",
+      "placeholder2": "Covenants extracted (simulated)",
+      "placeholder3": "ESG obligations indexed (simulated)"
+    },
+    "actions": {
+      "exportSummary": "Export Summary"
+    }
+  },
+  "status": {
+    "dataset": "Dataset",
+    "lastExtraction": "Last extraction",
+    "never": "Never"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "section": {
+      "global": "Global",
+      "loanWorkspace": "Loan Workspace"
+    },
+    "portfolio": "Portfolio",
+    "origination": "Origination",
+    "loan": {
+      "overview": "Overview",
+      "documents": "Documents",
+      "servicing": "Servicing",
+      "trading": "Trading",
+      "esg": "ESG"
+    },
+    "activeLoan": "Active loan",
+    "actions": {
+      "openDrawer": "Open panel",
+      "clearLoan": "Clear"
+    }
+  }
+}
