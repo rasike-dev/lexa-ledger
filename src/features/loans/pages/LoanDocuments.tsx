@@ -4,6 +4,8 @@ import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useClauses } from "../../documents/hooks/useClauses";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
+import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
+import { buildDeepLink } from "../../../app/utils/deepLink";
 
 function badgeColors(tag: string) {
   const map: Record<string, { bg: string; fg: string }> = {
@@ -126,9 +128,21 @@ export function LoanDocuments() {
             >
               <div
                 id="amendments"
-                style={{ fontWeight: 800, marginBottom: 8, scrollMarginTop: 12 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  fontWeight: 800,
+                  marginBottom: 8,
+                  scrollMarginTop: 12,
+                }}
               >
-                Amendment impact preview
+                <span>Amendment impact preview</span>
+                <CopyLinkButton
+                  href={buildDeepLink(`${loanPaths.documents(loanId ?? "demo-loan-001")}#amendments`)}
+                  label="Copy link to Amendments"
+                />
               </div>
               {q.data.amendmentSummary.map((a, idx) => {
                 const s = severityStyle(a.severity);
@@ -213,9 +227,17 @@ export function LoanDocuments() {
                   borderBottom: "1px solid rgb(var(--border))",
                   fontWeight: 800,
                   scrollMarginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
                 }}
               >
-                Clauses ({q.data?.clauses.length ?? 0})
+                <span>Clauses ({q.data?.clauses.length ?? 0})</span>
+                <CopyLinkButton
+                  href={buildDeepLink(`${loanPaths.documents(loanId ?? "demo-loan-001")}#clauses`)}
+                  label="Copy link to Clauses"
+                />
               </div>
 
               <div style={{ maxHeight: "60vh", overflow: "auto" }}>

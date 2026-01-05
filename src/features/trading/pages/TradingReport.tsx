@@ -7,6 +7,8 @@ import { useLoanSnapshot } from "../../loans/hooks/useLoanSnapshot";
 import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
 import { useTradingChecklist } from "../hooks/useTradingChecklist";
+import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
+import { buildDeepLink } from "../../../app/utils/deepLink";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -104,12 +106,17 @@ export function TradingReport() {
 
   return (
     <div className="print-root">
+      <div id="top" style={{ scrollMarginTop: 12 }} />
       <div className="no-print report-actions">
         <NavLink className="link" to={loanPaths.trading(loanId ?? "demo-loan-001")}>
           ← Back to Trading
         </NavLink>
 
         <div style={{ display: "flex", gap: 8 }}>
+          <CopyLinkButton
+            href={buildDeepLink(`${loanPaths.tradingReport(loanId ?? "demo-loan-001")}#top`)}
+            label="Copy link to Trading Report"
+          />
           <button className="btn" onClick={() => window.print()}>
             Print / Save as PDF
           </button>

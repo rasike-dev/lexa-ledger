@@ -6,6 +6,8 @@ import { loanPaths } from "../../../app/routes/paths";
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard, computeKpiStatus } from "../../esg/services/mockEsgApi";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
+import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
+import { buildDeepLink } from "../../../app/utils/deepLink";
 
 function pillForOverall(overall: "GREEN" | "AMBER" | "RED") {
   if (overall === "GREEN") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)" };
@@ -124,12 +126,27 @@ export function LoanESG() {
           >
             <div
               id="kpis"
-              style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))", scrollMarginTop: 12 }}
+              style={{
+                padding: 12,
+                borderBottom: "1px solid rgb(var(--border))",
+                scrollMarginTop: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
             >
-              <div style={{ fontWeight: 900 }}>ESG KPI register</div>
-              <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                As of: {new Date(q.data.asOf).toLocaleString()}
+              <div>
+                <div style={{ fontWeight: 900 }}>ESG KPI register</div>
+                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                  As of: {new Date(q.data.asOf).toLocaleString()}
+                </div>
               </div>
+
+              <CopyLinkButton
+                href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#kpis`)}
+                label="Copy link to ESG KPIs"
+              />
             </div>
 
             <table
@@ -225,12 +242,27 @@ export function LoanESG() {
           >
             <div
               id="evidence"
-              style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))", scrollMarginTop: 12 }}
+              style={{
+                padding: 12,
+                borderBottom: "1px solid rgb(var(--border))",
+                scrollMarginTop: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
             >
-              <div style={{ fontWeight: 900 }}>Evidence registry</div>
-              <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                Verified/unverified evidence mapped to KPIs (audit-ready).
+              <div>
+                <div style={{ fontWeight: 900 }}>Evidence registry</div>
+                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                  Verified/unverified evidence mapped to KPIs (audit-ready).
+                </div>
               </div>
+
+              <CopyLinkButton
+                href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`)}
+                label="Copy link to ESG Evidence"
+              />
             </div>
 
             <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>

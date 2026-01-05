@@ -3,6 +3,8 @@ import { useParams, NavLink } from "react-router-dom";
 import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useLoanSnapshot } from "../hooks/useLoanSnapshot";
+import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
+import { buildDeepLink } from "../../../app/utils/deepLink";
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -28,7 +30,15 @@ export function LoanOverview() {
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 8px 0" }}>Loan Workspace • Overview</h1>
+      <div id="top" style={{ scrollMarginTop: 12 }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, margin: "0 0 8px 0" }}>
+        <h1 style={{ margin: 0 }}>Loan Workspace • Overview</h1>
+
+        <CopyLinkButton
+          href={buildDeepLink(`${loanPaths.overview(loanId ?? "demo-loan-001")}#top`)}
+          label="Copy link to Loan Overview"
+        />
+      </div>
       <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
         Digital Loan Twin summary and lifecycle entry points.
       </p>
@@ -80,6 +90,79 @@ export function LoanOverview() {
               title="Lifecycle health"
               value={<LifecycleHealth covenants={q.data.covenants} esg={q.data.esgClauses} />}
             />
+          </div>
+
+          {/* Guided Demo */}
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--card))",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 16 }}>Guided Demo (90 seconds)</div>
+                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                  A bank-ready walkthrough showing how structured documents drive servicing risk, trading diligence, and ESG transparency.
+                </div>
+              </div>
+
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--bg))",
+                  fontWeight: 900,
+                  fontSize: 12,
+                  color: "rgb(var(--muted))",
+                }}
+              >
+                Demo-safe • deterministic
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
+              <DemoStep
+                n={1}
+                title="Documents → Amendment impact"
+                desc="Open the clause explorer and review the amendment impact preview."
+                linkTo={`${loanPaths.documents(loanId ?? "demo-loan-001")}#amendments`}
+                linkLabel="Open Documents"
+                bullets={["See severity-labelled changes", "Click downstream impact chips to navigate"]}
+              />
+
+              <DemoStep
+                n={2}
+                title="Servicing → Stress scenario"
+                desc="Toggle to stress scenario to surface covenant breaches and reduced headroom."
+                linkTo={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
+                linkLabel="Open Servicing"
+                bullets={["Covenant statuses flip deterministically", "Sets up the trading diligence story"]}
+              />
+
+              <DemoStep
+                n={3}
+                title="Trading → Readiness + diligence"
+                desc="Watch readiness score adjust based on covenant risk and see the checklist respond."
+                linkTo={loanPaths.trading(loanId ?? "demo-loan-001")}
+                linkLabel="Open Trading"
+                bullets={["Score is explainable (transparent model)", "Checklist rows deep-link to fix areas"]}
+              />
+
+              <DemoStep
+                n={4}
+                title="ESG → KPI evidence & verification"
+                desc="Review KPI status and evidence registry; see verification coverage feed into diligence."
+                linkTo={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
+                linkLabel="Open ESG"
+                bullets={["Verified / unverified evidence mapped to KPIs", "Supports greener lending transparency"]}
+              />
+            </div>
           </div>
 
           {/* Lifecycle next steps */}
@@ -169,4 +252,78 @@ function LifecycleHealth({ covenants, esg }: { covenants: number; esg: number })
   if (covenants >= 6 || esg >= 5) return <span>Active monitoring</span>;
   if (covenants >= 4 || esg >= 3) return <span>Healthy</span>;
   return <span>Light monitoring</span>;
+}
+
+function DemoStep({
+  n,
+  title,
+  desc,
+  linkTo,
+  linkLabel,
+  bullets,
+}: {
+  n: number;
+  title: string;
+  desc: string;
+  linkTo: string;
+  linkLabel: string;
+  bullets: string[];
+}) {
+  return (
+    <div
+      style={{
+        padding: 12,
+        borderRadius: 12,
+        border: "1px solid rgb(var(--border))",
+        background: "rgb(var(--bg))",
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, alignItems: "start" }}>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 10,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(37,99,235,0.12)",
+            color: "rgb(37,99,235)",
+            fontWeight: 900,
+          }}
+        >
+          {n}
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 900 }}>{title}</div>
+          <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>{desc}</div>
+
+          <ul style={{ margin: "10px 0 0 0", paddingLeft: 18, fontSize: 12, color: "rgb(var(--muted))" }}>
+            {bullets.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+
+          <div style={{ marginTop: 10 }}>
+            <NavLink
+              to={linkTo}
+              style={{
+                textDecoration: "none",
+                display: "inline-block",
+                padding: "8px 10px",
+                borderRadius: 10,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--card))",
+                fontWeight: 900,
+                color: "rgb(var(--primary))",
+                fontSize: 12,
+              }}
+            >
+              {linkLabel} →
+            </NavLink>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -3,6 +3,9 @@ import { useParams } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
+import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
+import { buildDeepLink } from "../../../app/utils/deepLink";
+import { loanPaths } from "../../../app/routes/paths";
 
 function statusStyle(status: "OK" | "WATCH" | "BREACH_RISK") {
   if (status === "OK") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "OK" };
@@ -68,8 +71,23 @@ export function LoanServicing() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
           {/* Covenant cards */}
           <div>
-            <div id="covenants" style={{ fontWeight: 900, marginBottom: 8, scrollMarginTop: 12 }}>
-              Covenants
+            <div
+              id="covenants"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                fontWeight: 900,
+                marginBottom: 8,
+                scrollMarginTop: 12,
+              }}
+            >
+              <span>Covenants</span>
+              <CopyLinkButton
+                href={buildDeepLink(`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`)}
+                label="Copy link to Covenants"
+              />
             </div>
 
             <div
@@ -156,8 +174,23 @@ export function LoanServicing() {
 
           {/* Obligations */}
           <div>
-            <div id="obligations" style={{ fontWeight: 900, marginBottom: 8, scrollMarginTop: 12 }}>
-              Obligations due
+            <div
+              id="obligations"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                fontWeight: 900,
+                marginBottom: 8,
+                scrollMarginTop: 12,
+              }}
+            >
+              <span>Obligations due</span>
+              <CopyLinkButton
+                href={buildDeepLink(`${loanPaths.servicing(loanId ?? "demo-loan-001")}#obligations`)}
+                label="Copy link to Obligations"
+              />
             </div>
 
             <div
