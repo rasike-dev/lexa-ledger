@@ -1,4 +1,71 @@
 {
   "loanId": "demo-loan-001",
-  "metrics": []
+  "asOf": "2026-01-05T09:00:00.000Z",
+  "kpis": [
+    {
+      "id": "kpi-001",
+      "name": "Scope 1+2 emissions intensity",
+      "unit": "tCO2e / €m revenue",
+      "period": "FY2025",
+      "target": 18.0,
+      "actual": 19.4,
+      "direction": "LOWER_IS_BETTER",
+      "linkedClauseRef": "doc:agreement_v2#p188"
+    },
+    {
+      "id": "kpi-002",
+      "name": "Renewable energy share",
+      "unit": "%",
+      "period": "FY2025",
+      "target": 45,
+      "actual": 42,
+      "direction": "HIGHER_IS_BETTER",
+      "linkedClauseRef": "doc:agreement_v2#p188"
+    },
+    {
+      "id": "kpi-003",
+      "name": "Lost Time Injury Frequency Rate (LTIFR)",
+      "unit": "per 1m hours",
+      "period": "FY2025",
+      "target": 0.9,
+      "actual": 0.7,
+      "direction": "LOWER_IS_BETTER",
+      "linkedClauseRef": "doc:agreement_v2#p188"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-001",
+      "title": "FY2025 Sustainability Report",
+      "type": "REPORT",
+      "status": "VERIFIED",
+      "provider": "Borrower",
+      "verifiedBy": "Lender ESG Ops",
+      "verifiedAt": "2026-01-03T11:15:00.000Z",
+      "sourceRef": "files:sustainability_report_fy2025.pdf",
+      "appliesToKpiIds": ["kpi-001", "kpi-002"]
+    },
+    {
+      "id": "ev-002",
+      "title": "Utility invoices – renewable certificates",
+      "type": "INVOICE",
+      "status": "UNVERIFIED",
+      "provider": "Borrower",
+      "verifiedBy": "",
+      "verifiedAt": "",
+      "sourceRef": "files:renewable_certificates.zip",
+      "appliesToKpiIds": ["kpi-002"]
+    },
+    {
+      "id": "ev-003",
+      "title": "Health & Safety audit letter",
+      "type": "AUDIT_LETTER",
+      "status": "VERIFIED",
+      "provider": "Third-party auditor",
+      "verifiedBy": "Agent Ops",
+      "verifiedAt": "2026-01-04T09:20:00.000Z",
+      "sourceRef": "files:hse_audit_letter.pdf",
+      "appliesToKpiIds": ["kpi-003"]
+    }
+  ]
 }

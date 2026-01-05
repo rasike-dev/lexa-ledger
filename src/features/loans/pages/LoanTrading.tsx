@@ -6,6 +6,8 @@ import { loanPaths } from "../../../app/routes/paths";
 import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
 import { useTradingChecklist } from "../../trading/hooks/useTradingChecklist";
+import { useEsg } from "../../esg/hooks/useEsg";
+import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -48,6 +50,7 @@ export function LoanTrading() {
   const portfolioQ = usePortfolio();
   const servicingQ = useServicing(loanId ?? null);
   const checklistQ = useTradingChecklist(loanId ?? null);
+  const esgQ = useEsg(loanId ?? null);
 
   const baseScore = React.useMemo(() => {
     const id = loanId ?? "";
@@ -70,11 +73,29 @@ export function LoanTrading() {
     return { score, tier, penalty, breach, watch };
   }, [baseScore, covenantStatuses]);
 
+  const evidenceCoverage = React.useMemo(() => {
+    if (!esgQ.data) return null;
+    return computeEsgScorecard(esgQ.data).verifiedCoveragePct;
+  }, [esgQ.data]);
+
   const checklist = React.useMemo(() => {
     if (!checklistQ.data) return null;
 
     const items = checklistQ.data.checklist.map((c) => {
-      const status = scenario === "stress" ? c.statusStress : c.statusBase;
+      // default status from fixture
+      let status = (scenario === "stress" ? c.statusStress : c.statusBase) as ChecklistStatus;
+
+      // Dynamic override for ESG evidence check
+      // Match by title (simple + robust for demo). You can later match by id "chk-005".
+      const isEsgEvidenceCheck =
+        c.id === "chk-005" ||
+        c.title.toLowerCase().includes("esg") ||
+        c.title.toLowerCase().includes("evidence");
+
+      if (isEsgEvidenceCheck && evidenceCoverage !== null) {
+        status = evidenceCoverage >= 67 ? "PASS" : "REVIEW";
+      }
+
       return { ...c, status };
     });
 
@@ -87,7 +108,7 @@ export function LoanTrading() {
     );
 
     return { items, counts };
-  }, [checklistQ.data, scenario]);
+  }, [checklistQ.data, scenario, evidenceCoverage]);
 
   return (
     <div>
@@ -200,6 +221,9 @@ export function LoanTrading() {
                       <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
                         {c.auto ? "Automated check" : "Human review required"}
                         {c.sourceRef ? ` • Source: ${c.sourceRef}` : ""}
+                        {c.id === "chk-005" && evidenceCoverage !== null
+                          ? ` • Coverage: ${evidenceCoverage}%`
+                          : ""}
                       </div>
                     </div>
                   );
