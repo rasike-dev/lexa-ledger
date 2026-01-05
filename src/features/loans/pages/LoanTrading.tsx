@@ -34,6 +34,31 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function checklistToRoute(loanId: string, title: string, sourceRef?: string) {
+  const ref = (sourceRef ?? "").toLowerCase();
+  const t = title.toLowerCase();
+
+  // Prefer explicit sourceRef routing
+  if (ref.startsWith("servicing:")) return `${loanPaths.servicing(loanId)}#covenants`;
+  if (ref.startsWith("doc:")) {
+    // If EoD related, jump to clause explorer + suggest EOD tag
+    if (t.includes("event of default") || t.includes("eod"))
+      return `${loanPaths.documents(loanId)}#clauses`;
+    return `${loanPaths.documents(loanId)}#amendments`;
+  }
+  if (ref.startsWith("esg:")) return `${loanPaths.esg(loanId)}#evidence`;
+
+  // Keyword fallback
+  if (t.includes("covenant") || t.includes("headroom"))
+    return `${loanPaths.servicing(loanId)}#covenants`;
+  if (t.includes("event of default") || t.includes("eod") || t.includes("clause"))
+    return `${loanPaths.documents(loanId)}#clauses`;
+  if (t.includes("esg") || t.includes("evidence") || t.includes("kpi"))
+    return `${loanPaths.esg(loanId)}#evidence`;
+
+  return `${loanPaths.overview(loanId)}#top`;
+}
+
 export function LoanTrading() {
   const { loanId } = useParams();
   const navigate = useNavigate();
@@ -193,13 +218,20 @@ export function LoanTrading() {
                 {checklist?.items.map((c) => {
                   const chip = statusChip(c.status);
                   return (
-                    <div
+                    <button
                       key={c.id}
+                      onClick={() => {
+                        if (!loanId) return;
+                        navigate(checklistToRoute(loanId, c.title, c.sourceRef));
+                      }}
                       style={{
+                        width: "100%",
+                        textAlign: "left",
                         padding: 12,
                         borderRadius: 12,
                         border: "1px solid rgb(var(--border))",
                         background: "rgb(var(--bg))",
+                        cursor: "pointer",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
@@ -224,8 +256,12 @@ export function LoanTrading() {
                         {c.id === "chk-005" && evidenceCoverage !== null
                           ? ` • Coverage: ${evidenceCoverage}%`
                           : ""}
+                        {" • "}
+                        <span style={{ color: "rgb(var(--primary))", fontWeight: 900 }}>
+                          Open module →
+                        </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useClauses } from "../../documents/hooks/useClauses";
+import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 
 function badgeColors(tag: string) {
   const map: Record<string, { bg: string; fg: string }> = {
@@ -50,6 +51,8 @@ export function LoanDocuments() {
   React.useEffect(() => {
     if (!selectedClauseId && q.data?.clauses?.length) setSelectedClauseId(q.data.clauses[0].id);
   }, [q.data, selectedClauseId]);
+
+  useScrollToHash([q.data, selectedClauseId]);
 
   if (!loanId) {
     return (
@@ -121,7 +124,12 @@ export function LoanDocuments() {
                 background: "rgb(var(--card))",
               }}
             >
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Amendment impact preview</div>
+              <div
+                id="amendments"
+                style={{ fontWeight: 800, marginBottom: 8, scrollMarginTop: 12 }}
+              >
+                Amendment impact preview
+              </div>
               {q.data.amendmentSummary.map((a, idx) => {
                 const s = severityStyle(a.severity);
                 return (
@@ -198,11 +206,13 @@ export function LoanDocuments() {
               }}
             >
               <div
+                id="clauses"
                 style={{
                   padding: 12,
                   background: "rgb(var(--card))",
                   borderBottom: "1px solid rgb(var(--border))",
                   fontWeight: 800,
+                  scrollMarginTop: 12,
                 }}
               >
                 Clauses ({q.data?.clauses.length ?? 0})

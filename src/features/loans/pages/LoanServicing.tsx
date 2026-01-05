@@ -2,6 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
+import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 
 function statusStyle(status: "OK" | "WATCH" | "BREACH_RISK") {
   if (status === "OK") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "OK" };
@@ -34,6 +35,8 @@ export function LoanServicing() {
     return enrichCovenants(q.data, scenario);
   }, [q.data, scenario]);
 
+  useScrollToHash([q.data, scenario]);
+
   return (
     <div>
       <h1 style={{ margin: "0 0 8px 0" }}>Servicing • Covenants & Obligations</h1>
@@ -65,7 +68,9 @@ export function LoanServicing() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
           {/* Covenant cards */}
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>Covenants</div>
+            <div id="covenants" style={{ fontWeight: 900, marginBottom: 8, scrollMarginTop: 12 }}>
+              Covenants
+            </div>
 
             <div
               style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
@@ -151,7 +156,9 @@ export function LoanServicing() {
 
           {/* Obligations */}
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>Obligations due</div>
+            <div id="obligations" style={{ fontWeight: 900, marginBottom: 8, scrollMarginTop: 12 }}>
+              Obligations due
+            </div>
 
             <div
               style={{

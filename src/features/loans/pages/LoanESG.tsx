@@ -5,6 +5,7 @@ import { loanPaths } from "../../../app/routes/paths";
 
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard, computeKpiStatus } from "../../esg/services/mockEsgApi";
+import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 
 function pillForOverall(overall: "GREEN" | "AMBER" | "RED") {
   if (overall === "GREEN") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)" };
@@ -40,6 +41,8 @@ export function LoanESG() {
       .forEach((e) => e.appliesToKpiIds.forEach((id) => set.add(id)));
     return set;
   }, [q.data]);
+
+  useScrollToHash([q.data]);
 
   return (
     <div>
@@ -119,7 +122,10 @@ export function LoanESG() {
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))" }}>
+            <div
+              id="kpis"
+              style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))", scrollMarginTop: 12 }}
+            >
               <div style={{ fontWeight: 900 }}>ESG KPI register</div>
               <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
                 As of: {new Date(q.data.asOf).toLocaleString()}
@@ -217,7 +223,10 @@ export function LoanESG() {
               background: "rgb(var(--card))",
             }}
           >
-            <div style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))" }}>
+            <div
+              id="evidence"
+              style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))", scrollMarginTop: 12 }}
+            >
               <div style={{ fontWeight: 900 }}>Evidence registry</div>
               <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
                 Verified/unverified evidence mapped to KPIs (audit-ready).

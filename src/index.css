@@ -293,3 +293,19 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
 }
+
+@keyframes anchorFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45);
+    background: rgba(37, 99, 235, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+    background: transparent;
+  }
+}
+
+.anchor-flash {
+  animation: anchorFlash 1.2s ease-out;
+  border-radius: 12px;
+}
