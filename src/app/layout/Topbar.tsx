@@ -12,6 +12,7 @@ export function Topbar() {
 
   const role = useUIStore((s) => s.role);
   const setRole = useUIStore((s) => s.setRole);
+  const demoMode = useUIStore((s) => s.demoMode);
 
   return (
     <div
@@ -39,6 +40,26 @@ export function Topbar() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {demoMode && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 10px",
+              borderRadius: 999,
+              border: "1px solid rgb(var(--border))",
+              background: "rgba(37,99,235,0.10)",
+              color: "rgb(37,99,235)",
+              fontWeight: 900,
+              fontSize: 12,
+            }}
+          >
+            Demo Mode
+            <span style={{ color: "rgb(var(--muted))", fontWeight: 900 }}>• Guided flow</span>
+          </span>
+        )}
+
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as any)}

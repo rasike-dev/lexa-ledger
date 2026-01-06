@@ -28,6 +28,9 @@ type UIState = {
   setServicingScenario: (loanId: string, scenario: "base" | "stress") => void;
   toggleServicingScenario: (loanId: string) => void;
   resetDemoState: (loanId: string) => void;
+
+  demoMode: boolean;
+  setDemoMode: (on: boolean) => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -41,6 +44,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   lastExtractionAt: null,
 
+  demoMode: false,
+
   setActiveLoanId: (id) => set(() => ({ activeLoanId: id, rightDrawerOpen: id ? true : false })),
   setRightDrawerOpen: (open) => set(() => ({ rightDrawerOpen: open })),
 
@@ -48,6 +53,8 @@ export const useUIStore = create<UIState>((set) => ({
   setTheme: (theme) => set(() => ({ theme })),
   setLanguage: (language) => set(() => ({ language })),
   setLastExtractionAt: (lastExtractionAt) => set(() => ({ lastExtractionAt })),
+
+  setDemoMode: (on) => set(() => ({ demoMode: on })),
 
   servicingScenarioByLoan: {},
   setServicingScenario: (loanId, scenario) =>
@@ -69,6 +76,9 @@ export const useUIStore = create<UIState>((set) => ({
 
       // close drawers/panels
       rightDrawerOpen: false,
+
+      // turn off demo mode
+      demoMode: false,
 
       // keep activeLoanId as-is; do not wipe navigation
     })),

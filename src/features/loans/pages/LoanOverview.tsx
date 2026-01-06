@@ -23,6 +23,7 @@ export function LoanOverview() {
   const navigate = useNavigate();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const resetDemoState = useUIStore((s) => s.resetDemoState);
+  const setDemoMode = useUIStore((s) => s.setDemoMode);
 
   React.useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
@@ -117,6 +118,7 @@ export function LoanOverview() {
                   onClick={() => {
                     const id = loanId ?? "demo-loan-001";
                     resetDemoState(id);
+                    setDemoMode(true);
                     navigate(`${loanPaths.documents(id)}#amendments`);
                   }}
                   style={{
