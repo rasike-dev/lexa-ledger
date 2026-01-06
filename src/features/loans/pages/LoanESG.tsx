@@ -351,6 +351,8 @@ export function LoanESG() {
           </div>
 
           <GuidedDemoCTA
+            step={4}
+            totalSteps={4}
             title="Guided Demo • Finish"
             body="Return to Overview to reset and replay the workflow, or explore modules freely."
             to={`${loanPaths.overview(loanId ?? "demo-loan-001")}#top`}

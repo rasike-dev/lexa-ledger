@@ -341,6 +341,8 @@ export function LoanTrading() {
           </div>
 
           <GuidedDemoCTA
+            step={3}
+            totalSteps={4}
             title="Guided Demo • Next step"
             body="Now review ESG KPIs and evidence verification — this feeds diligence and supports greener lending."
             to={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}

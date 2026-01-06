@@ -256,6 +256,8 @@ export function LoanServicing() {
         </div>
 
           <GuidedDemoCTA
+            step={2}
+            totalSteps={4}
             title="Guided Demo • Next step"
             body="Next, open Trading to see readiness score and diligence checklist react to covenant risk."
             to={loanPaths.trading(loanId ?? "demo-loan-001")}

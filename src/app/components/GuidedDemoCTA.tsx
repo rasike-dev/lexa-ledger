@@ -7,12 +7,16 @@ export function GuidedDemoCTA({
   to,
   buttonLabel,
   subtle,
+  step,
+  totalSteps,
 }: {
   title: string;
   body: string;
   to: string;
   buttonLabel: string;
   subtle?: boolean;
+  step?: number;
+  totalSteps?: number;
 }) {
   return (
     <div
@@ -24,6 +28,19 @@ export function GuidedDemoCTA({
         background: subtle ? "rgb(var(--bg))" : "rgb(var(--card))",
       }}
     >
+      {step && totalSteps && (
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 900,
+            color: "rgb(var(--muted))",
+            marginBottom: 6,
+          }}
+        >
+          Step {step} / {totalSteps}
+        </div>
+      )}
+
       <div
         style={{
           display: "flex",

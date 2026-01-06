@@ -332,6 +332,8 @@ export function LoanDocuments() {
           </div>
 
           <GuidedDemoCTA
+            step={1}
+            totalSteps={4}
             title="Guided Demo • Next step"
             body="Now jump to Servicing and toggle Stress scenario to surface covenant risk."
             to={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
