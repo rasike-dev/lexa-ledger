@@ -1,9 +1,12 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../store/uiStore";
+import { loanPaths } from "../routes/paths";
 
 export function Topbar() {
   const { t } = useTranslation("common");
+  const navigate = useNavigate();
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
 
@@ -13,6 +16,9 @@ export function Topbar() {
   const role = useUIStore((s) => s.role);
   const setRole = useUIStore((s) => s.setRole);
   const demoMode = useUIStore((s) => s.demoMode);
+  const resetDemoState = useUIStore((s) => s.resetDemoState);
+  const setDemoMode = useUIStore((s) => s.setDemoMode);
+  const activeLoanId = useUIStore((s) => s.activeLoanId);
 
   return (
     <div
@@ -41,7 +47,7 @@ export function Topbar() {
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {demoMode && (
-          <span
+          <div
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -55,9 +61,32 @@ export function Topbar() {
               fontSize: 12,
             }}
           >
-            Demo Mode
+            <span>Demo Mode</span>
             <span style={{ color: "rgb(var(--muted))", fontWeight: 900 }}>• Guided flow</span>
-          </span>
+
+            <button
+              onClick={() => {
+                const id = activeLoanId ?? "demo-loan-001";
+                resetDemoState(id);
+                setDemoMode(false);
+                navigate(`${loanPaths.overview(id)}#top`);
+              }}
+              style={{
+                marginLeft: 6,
+                padding: "4px 8px",
+                borderRadius: 999,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--bg))",
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: "pointer",
+                color: "rgb(var(--danger))",
+              }}
+              title="Exit guided demo"
+            >
+              Exit
+            </button>
+          </div>
         )}
 
         <select

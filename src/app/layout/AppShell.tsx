@@ -4,8 +4,11 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { RightDrawer } from "./RightDrawer";
 import { StatusBar } from "./StatusBar";
+import { useUIStore } from "../store/uiStore";
 
 export function AppShell() {
+  const demoMode = useUIStore((s) => s.demoMode);
+
   return (
     <div
       className="app-shell"
@@ -26,9 +29,35 @@ export function AppShell() {
 
       <main
         data-testid="page-content"
-        style={{ gridRow: "2", gridColumn: "2", padding: 16, overflow: "auto" }}
+        style={{
+          gridRow: "2",
+          gridColumn: "2",
+          padding: 16,
+          overflow: "auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <Outlet />
+        <div style={{ flex: 1 }}>
+          <Outlet />
+        </div>
+        {demoMode && (
+          <footer
+            className="no-print"
+            style={{
+              marginTop: "auto",
+              padding: "8px 12px",
+              borderTop: "1px solid rgb(var(--border))",
+              background: "rgb(var(--bg))",
+              fontSize: 11,
+              color: "rgb(var(--muted))",
+              textAlign: "center",
+            }}
+          >
+            <strong>Demo notice:</strong> This application uses simulated data for demonstration purposes only.
+            No real client, transaction, or financial information is represented.
+          </footer>
+        )}
       </main>
 
       <div
