@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams, NavLink } from "react-router-dom";
+import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useLoanSnapshot } from "../hooks/useLoanSnapshot";
@@ -20,7 +20,9 @@ function formatMoney(amount: number, currency: string) {
 
 export function LoanOverview() {
   const { loanId } = useParams();
+  const navigate = useNavigate();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const resetDemoState = useUIStore((s) => s.resetDemoState);
 
   React.useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
@@ -110,20 +112,58 @@ export function LoanOverview() {
                 </div>
               </div>
 
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: "1px solid rgb(var(--border))",
-                  background: "rgb(var(--bg))",
-                  fontWeight: 900,
-                  fontSize: 12,
-                  color: "rgb(var(--muted))",
-                }}
-              >
-                Demo-safe • deterministic
-              </span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => {
+                    const id = loanId ?? "demo-loan-001";
+                    resetDemoState(id);
+                    navigate(`${loanPaths.documents(id)}#amendments`);
+                  }}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--primary))",
+                    color: "white",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Start guided demo →
+                </button>
+
+                <button
+                  onClick={() => {
+                    const id = loanId ?? "demo-loan-001";
+                    resetDemoState(id);
+                  }}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--bg))",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Reset demo state
+                </button>
+
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--bg))",
+                    fontWeight: 900,
+                    fontSize: 12,
+                    color: "rgb(var(--muted))",
+                  }}
+                >
+                  Demo-safe • deterministic
+                </span>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>

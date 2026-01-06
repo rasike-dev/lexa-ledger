@@ -6,6 +6,7 @@ import { useClauses } from "../../documents/hooks/useClauses";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
+import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
 function badgeColors(tag: string) {
   const map: Record<string, { bg: string; fg: string }> = {
@@ -329,6 +330,13 @@ export function LoanDocuments() {
               </div>
             </div>
           </div>
+
+          <GuidedDemoCTA
+            title="Guided Demo • Next step"
+            body="Now jump to Servicing and toggle Stress scenario to surface covenant risk."
+            to={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
+            buttonLabel="Go to Servicing"
+          />
         </>
       )}
     </div>

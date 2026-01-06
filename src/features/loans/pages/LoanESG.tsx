@@ -8,6 +8,7 @@ import { computeEsgScorecard, computeKpiStatus } from "../../esg/services/mockEs
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
+import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
 function pillForOverall(overall: "GREEN" | "AMBER" | "RED") {
   if (overall === "GREEN") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)" };
@@ -348,6 +349,14 @@ export function LoanESG() {
             assurance providers and cryptographic attestations (DLT optional), producing audit
             trails consumable across counterparties.
           </div>
+
+          <GuidedDemoCTA
+            title="Guided Demo • Finish"
+            body="Return to Overview to reset and replay the workflow, or explore modules freely."
+            to={`${loanPaths.overview(loanId ?? "demo-loan-001")}#top`}
+            buttonLabel="Back to Overview"
+            subtle
+          />
         </>
       )}
     </div>

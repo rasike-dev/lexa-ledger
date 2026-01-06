@@ -8,6 +8,7 @@ import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicin
 import { useTradingChecklist } from "../../trading/hooks/useTradingChecklist";
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
+import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -338,6 +339,13 @@ export function LoanTrading() {
               Export diligence snapshot (print/PDF)
             </button>
           </div>
+
+          <GuidedDemoCTA
+            title="Guided Demo • Next step"
+            body="Now review ESG KPIs and evidence verification — this feeds diligence and supports greener lending."
+            to={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
+            buttonLabel="Go to ESG"
+          />
         </div>
       </div>
     </div>

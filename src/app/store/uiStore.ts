@@ -27,6 +27,7 @@ type UIState = {
   servicingScenarioByLoan: Record<string, "base" | "stress">;
   setServicingScenario: (loanId: string, scenario: "base" | "stress") => void;
   toggleServicingScenario: (loanId: string) => void;
+  resetDemoState: (loanId: string) => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -60,4 +61,15 @@ export const useUIStore = create<UIState>((set) => ({
       const next = current === "base" ? "stress" : "base";
       return { servicingScenarioByLoan: { ...s.servicingScenarioByLoan, [loanId]: next } };
     }),
+
+  resetDemoState: (loanId) =>
+    set((s) => ({
+      // reset servicing scenario
+      servicingScenarioByLoan: { ...s.servicingScenarioByLoan, [loanId]: "base" },
+
+      // close drawers/panels
+      rightDrawerOpen: false,
+
+      // keep activeLoanId as-is; do not wipe navigation
+    })),
 }));

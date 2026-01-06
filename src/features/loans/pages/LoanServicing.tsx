@@ -6,6 +6,7 @@ import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { loanPaths } from "../../../app/routes/paths";
+import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
 function statusStyle(status: "OK" | "WATCH" | "BREACH_RISK") {
   if (status === "OK") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "OK" };
@@ -68,7 +69,8 @@ export function LoanServicing() {
       ) : q.isError ? (
         <div style={{ color: "rgb(var(--danger))" }}>Failed to load servicing data.</div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
           {/* Covenant cards */}
           <div>
             <div
@@ -252,6 +254,14 @@ export function LoanServicing() {
             </div>
           </div>
         </div>
+
+          <GuidedDemoCTA
+            title="Guided Demo • Next step"
+            body="Next, open Trading to see readiness score and diligence checklist react to covenant risk."
+            to={loanPaths.trading(loanId ?? "demo-loan-001")}
+            buttonLabel="Go to Trading"
+          />
+        </>
       )}
     </div>
   );
