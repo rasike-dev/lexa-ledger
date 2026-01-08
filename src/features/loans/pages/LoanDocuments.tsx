@@ -1,15 +1,16 @@
-import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { loanPaths } from "../../../app/routes/paths";
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../../../app/store/uiStore";
+import { useLoanDocuments } from "../../documents/hooks/useLoanDocuments";
 import { useClauses } from "../../documents/hooks/useClauses";
-import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
-import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
-import { buildDeepLink } from "../../../app/utils/deepLink";
-import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { createDocumentContainerHttp, uploadDocumentVersionHttp } from "../../documents/services/httpDocumentsWriteApi";
 
 function badgeColors(tag: string) {
   const map: Record<string, { bg: string; fg: string }> = {
+    basic: { bg: "rgba(148,163,184,0.18)", fg: "rgb(100,116,139)" },
+    covenant: { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)" },
+    risk: { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)" },
     PRICING: { bg: "rgba(37,99,235,0.12)", fg: "rgb(37,99,235)" },
     COVENANT: { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)" },
     REPORTING: { bg: "rgba(148,163,184,0.18)", fg: "rgb(100,116,139)" },
@@ -19,50 +20,79 @@ function badgeColors(tag: string) {
   return map[tag] ?? { bg: "rgba(148,163,184,0.18)", fg: "rgb(100,116,139)" };
 }
 
-function severityStyle(sev: string) {
-  if (sev === "HIGH") return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)" };
-  if (sev === "MEDIUM") return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)" };
-  return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)" };
-}
-
-function impactToPath(impact: string, loanId: string) {
-  const lower = impact.toLowerCase();
-
-  if (lower.includes("documents")) return loanPaths.documents(loanId);
-  if (lower.includes("servicing")) return loanPaths.servicing(loanId);
-  if (lower.includes("trading")) return loanPaths.trading(loanId);
-  if (lower.includes("esg")) return loanPaths.esg(loanId);
-
-  // default to overview
-  return loanPaths.overview(loanId);
-}
-
 export function LoanDocuments() {
-  const navigate = useNavigate();
   const { loanId } = useParams();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const demoMode = useUIStore((s) => s.demoMode);
+  const qc = useQueryClient();
+  const docsQuery = useLoanDocuments(loanId ?? null);
 
-  React.useEffect(() => {
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("Facility Agreement");
+  const [newType, setNewType] = useState("FACILITY_AGREEMENT");
+
+  useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
-  const q = useClauses(loanId ?? null);
-  const [selectedClauseId, setSelectedClauseId] = React.useState<string | null>(null);
+  // Default select latest version of newest doc
+  useEffect(() => {
+    if (!docsQuery.data?.length) return;
+    const first = docsQuery.data[0];
+    const latest = first.latestVersion?.documentVersionId ?? first.versions[0]?.documentVersionId;
+    if (latest && selectedVersionId !== latest) setSelectedVersionId(latest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docsQuery.data]);
 
-  const selectedClause =
-    q.data?.clauses.find((c) => c.id === selectedClauseId) ?? q.data?.clauses[0];
-  React.useEffect(() => {
-    if (!selectedClauseId && q.data?.clauses?.length) setSelectedClauseId(q.data.clauses[0].id);
-  }, [q.data, selectedClauseId]);
+  const clausesQuery = useClauses(selectedVersionId);
 
-  useScrollToHash([q.data, selectedClauseId]);
+  // A) Handlers for create + upload
+  async function onCreateDocument() {
+    if (!loanId) return;
+    if (demoMode) return; // or allow creating local-only demo items later
+
+    const res = await createDocumentContainerHttp(loanId, { title: newTitle, type: newType });
+    setSelectedDocumentId(res.documentId);
+
+    // refresh documents list
+    await qc.invalidateQueries({ queryKey: ["loanDocuments", loanId] });
+  }
+
+  async function onUploadVersion(file: File) {
+    if (!selectedDocumentId) return;
+    if (demoMode) return;
+
+    await uploadDocumentVersionHttp(selectedDocumentId, file);
+
+    // refresh list + clauses (default selection effect should pick latest)
+    await qc.invalidateQueries({ queryKey: ["loanDocuments", loanId] });
+  }
+
+  // C) Version -> Document mapping for selection binding
+  const versionToDocId = useMemo(() => {
+    const map: Record<string, string> = {};
+    (docsQuery.data ?? []).forEach((d) => {
+      d.versions.forEach((v) => (map[v.documentVersionId] = d.documentId));
+    });
+    return map;
+  }, [docsQuery.data]);
+
+  const options = useMemo(() => {
+    return (docsQuery.data ?? []).flatMap((d) =>
+      d.versions.map((v) => ({
+        value: v.documentVersionId,
+        label: `${d.title} — v${v.version} (${v.fileName})`,
+      })),
+    );
+  }, [docsQuery.data]);
 
   if (!loanId) {
     return (
       <div>
         <h1 style={{ margin: "0 0 8px 0" }}>Documents • Clause Explorer</h1>
         <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-          Structured clause view with amendment summary and downstream impact.
+          Structured clause view with extracted clauses from uploaded documents.
         </p>
         <div style={{ color: "rgb(var(--danger))", marginTop: 12 }}>
           No loan ID provided. Please select a loan first.
@@ -75,272 +105,248 @@ export function LoanDocuments() {
     <div>
       <h1 style={{ margin: "0 0 8px 0" }}>Documents • Clause Explorer</h1>
       <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-        Structured clause view with amendment summary and downstream impact.
+        Structured clause view with extracted clauses from uploaded documents.
       </p>
 
-      {q.isLoading ? (
-        <div style={{ color: "rgb(var(--muted))" }}>Loading clauses…</div>
-      ) : q.isError ? (
-        <div style={{ color: "rgb(var(--danger))" }}>
-          Failed to load clauses. {q.error instanceof Error ? q.error.message : "Unknown error"}
-        </div>
-      ) : !q.data ? (
-        <div style={{ color: "rgb(var(--muted))" }}>No data available.</div>
-      ) : (
-        <>
-          {/* Versions + Amendment Summary */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}
+      {/* B) Create + Upload UI */}
+      {!demoMode && (
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgb(var(--border))",
+            background: "rgb(var(--card))",
+          }}
+        >
+          <input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Document title"
+            style={{
+              flex: 1,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--background))",
+              color: "rgb(var(--foreground))",
+              fontSize: 14,
+            }}
+          />
+          <select
+            value={newType}
+            onChange={(e) => setNewType(e.target.value)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--background))",
+              color: "rgb(var(--foreground))",
+              fontSize: 14,
+            }}
           >
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid rgb(var(--border))",
-                background: "rgb(var(--card))",
-              }}
-            >
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Document versions</div>
-              {q.data.versions.map((v) => (
-                <div
-                  key={v.versionId}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 13,
-                    padding: "6px 0",
-                  }}
-                >
-                  <span>{v.label}</span>
-                  <span style={{ color: "rgb(var(--muted))" }}>
-                    {new Date(v.asOf).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <option value="FACILITY_AGREEMENT">Facility Agreement</option>
+            <option value="AMENDMENT">Amendment</option>
+            <option value="OTHER">Other</option>
+          </select>
 
-            <div
+          <button
+            onClick={onCreateDocument}
+            disabled={demoMode}
+            style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--primary))",
+              background: "rgb(var(--primary))",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: demoMode ? "not-allowed" : "pointer",
+              opacity: demoMode ? 0.5 : 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Create Document
+          </button>
+
+          <label
+            style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--border))",
+              background: selectedDocumentId && !demoMode ? "rgb(var(--accent))" : "rgb(var(--muted))",
+              color: selectedDocumentId && !demoMode ? "rgb(var(--accent-foreground))" : "rgb(var(--muted-foreground))",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: selectedDocumentId && !demoMode ? "pointer" : "not-allowed",
+              opacity: selectedDocumentId && !demoMode ? 1 : 0.5,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Upload Version
+            <input
+              type="file"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUploadVersion(f);
+              }}
+              disabled={demoMode || !selectedDocumentId}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+      )}
+
+      {demoMode && (
+        <div
+          style={{
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgba(245,158,11,0.3)",
+            background: "rgba(245,158,11,0.08)",
+            color: "rgb(245,158,11)",
+            fontSize: 14,
+          }}
+        >
+          📋 Demo Mode: Create/Upload disabled. Toggle demo mode OFF to use real backend.
+        </div>
+      )}
+
+      {docsQuery.isLoading && (
+        <div style={{ color: "rgb(var(--muted))", marginTop: 12 }}>Loading documents…</div>
+      )}
+      {docsQuery.isError && (
+        <div style={{ color: "rgb(var(--danger))", marginTop: 12 }}>
+          Failed to load documents. {docsQuery.error instanceof Error ? docsQuery.error.message : "Unknown error"}
+        </div>
+      )}
+
+      {!!options.length && (
+        <div
+          style={{
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgb(var(--border))",
+            background: "rgb(var(--card))",
+          }}
+        >
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: 600 }}>Select document version:</span>
+            <select
+              value={selectedVersionId ?? ""}
+              onChange={(e) => {
+                const vId = e.target.value;
+                setSelectedVersionId(vId);
+                setSelectedDocumentId(versionToDocId[vId] ?? null);
+              }}
               style={{
-                padding: 12,
+                flex: 1,
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--background))",
+                color: "rgb(var(--foreground))",
+                fontSize: 14,
+              }}
+            >
+              {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      <hr style={{ border: "none", borderTop: "1px solid rgb(var(--border))", margin: "24px 0" }} />
+
+      <h3 style={{ margin: "0 0 12px 0" }}>Extracted Clauses</h3>
+
+      {clausesQuery.isLoading && (
+        <div style={{ color: "rgb(var(--muted))" }}>Loading clauses…</div>
+      )}
+      {clausesQuery.isError && (
+        <div style={{ color: "rgb(var(--danger))" }}>
+          Failed to load clauses. {clausesQuery.error instanceof Error ? clausesQuery.error.message : "Unknown error"}
+        </div>
+      )}
+
+      {!clausesQuery.isLoading && !clausesQuery.isError && !clausesQuery.data?.length && (
+        <div style={{ color: "rgb(var(--muted))" }}>
+          No clauses extracted yet. The worker may still be processing this document.
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
+        {clausesQuery.data?.map((c: any) => {
+          const colors = c.riskTags?.[0] ? badgeColors(c.riskTags[0]) : badgeColors("basic");
+          return (
+            <div
+              key={c.id}
+              style={{
+                padding: 16,
                 borderRadius: 12,
                 border: "1px solid rgb(var(--border))",
                 background: "rgb(var(--card))",
               }}
             >
-              <div
-                id="amendments"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  fontWeight: 800,
-                  marginBottom: 8,
-                  scrollMarginTop: 12,
-                }}
-              >
-                <span>Amendment impact preview</span>
-                <CopyLinkButton
-                  href={buildDeepLink(`${loanPaths.documents(loanId ?? "demo-loan-001")}#amendments`)}
-                  label="Copy link to Amendments"
-                />
-              </div>
-              {q.data.amendmentSummary.map((a, idx) => {
-                const s = severityStyle(a.severity);
-                return (
-                  <div
-                    key={idx}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                {c.clauseRef && (
+                  <span
                     style={{
-                      borderTop: idx ? "1px solid rgb(var(--border))" : "none",
-                      paddingTop: idx ? 10 : 0,
-                      marginTop: idx ? 10 : 0,
+                      fontFamily: "monospace",
+                      fontSize: 12,
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: colors.bg,
+                      color: colors.fg,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {c.clauseRef}
+                  </span>
+                )}
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{c.title ?? "Clause"}</span>
+              </div>
+              <div style={{ whiteSpace: "pre-wrap", color: "rgb(var(--foreground))", lineHeight: 1.6 }}>
+                {c.text}
+              </div>
+              {!!c.riskTags?.length && (
+                <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {c.riskTags.map((tag: string) => {
+                    const tagColors = badgeColors(tag);
+                    return (
                       <span
+                        key={tag}
                         style={{
-                          display: "inline-block",
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background: s.bg,
-                          color: s.fg,
-                          fontSize: 12,
-                          fontWeight: 800,
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          borderRadius: 4,
+                          background: tagColors.bg,
+                          color: tagColors.fg,
+                          fontWeight: 500,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
                         }}
                       >
-                        {a.severity}
+                        {tag}
                       </span>
-                      <span style={{ fontWeight: 700 }}>{a.field}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-                      From <b>{a.from}</b> to <b>{a.to}</b>
-                    </div>
-                    <div style={{ fontSize: 12, marginTop: 8 }}>
-                      <div style={{ color: "rgb(var(--muted))", marginBottom: 6 }}>
-                        Downstream impacts
-                      </div>
-
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {a.impacts.map((impact) => (
-                          <button
-                            key={impact}
-                            onClick={() => {
-                              if (!loanId) return;
-                              navigate(impactToPath(impact, loanId));
-                            }}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 999,
-                              border: "1px solid rgb(var(--border))",
-                              background: "rgb(var(--bg))",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              color: "rgb(var(--primary))",
-                              fontWeight: 800,
-                            }}
-                          >
-                            {impact}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Clause list + details */}
-          <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 12 }}>
-            <div
-              style={{
-                border: "1px solid rgb(var(--border))",
-                borderRadius: 12,
-                overflow: "hidden",
-                background: "rgb(var(--bg))",
-              }}
-            >
-              <div
-                id="clauses"
-                style={{
-                  padding: 12,
-                  background: "rgb(var(--card))",
-                  borderBottom: "1px solid rgb(var(--border))",
-                  fontWeight: 800,
-                  scrollMarginTop: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
-              >
-                <span>Clauses ({q.data?.clauses.length ?? 0})</span>
-                <CopyLinkButton
-                  href={buildDeepLink(`${loanPaths.documents(loanId ?? "demo-loan-001")}#clauses`)}
-                  label="Copy link to Clauses"
-                />
-              </div>
-
-              <div style={{ maxHeight: "60vh", overflow: "auto" }}>
-                {q.data?.clauses.map((c) => {
-                  const col = badgeColors(c.tag);
-                  const active = c.id === selectedClause?.id;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedClauseId(c.id)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: 12,
-                        border: "none",
-                        borderTop: "1px solid rgb(var(--border))",
-                        background: active ? "rgba(37,99,235,0.08)" : "transparent",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 8,
-                        }}
-                      >
-                        <div style={{ fontWeight: 800 }}>{c.title}</div>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "4px 8px",
-                            borderRadius: 999,
-                            background: col.bg,
-                            color: col.fg,
-                            fontSize: 12,
-                            fontWeight: 800,
-                          }}
-                        >
-                          {c.tag}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-                        {c.sourceRef}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div
-              style={{
-                border: "1px solid rgb(var(--border))",
-                borderRadius: 12,
-                background: "rgb(var(--card))",
-              }}
-            >
-              <div style={{ padding: 12, borderBottom: "1px solid rgb(var(--border))" }}>
-                <div style={{ fontWeight: 900, fontSize: 16 }}>
-                  {selectedClause?.title ?? "Clause"}
+                    );
+                  })}
                 </div>
-                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-                  Source: {selectedClause?.sourceRef ?? "-"}
-                </div>
-              </div>
-
-              <div style={{ padding: 12 }}>
-                <div style={{ fontWeight: 800, marginBottom: 8 }}>Structured fields</div>
-                <pre
-                  style={{
-                    margin: 0,
-                    padding: 12,
-                    borderRadius: 12,
-                    border: "1px solid rgb(var(--border))",
-                    background: "rgb(var(--bg))",
-                    overflow: "auto",
-                    fontSize: 12,
-                  }}
-                >
-                  {JSON.stringify(selectedClause?.structured ?? {}, null, 2)}
-                </pre>
-
-                <div style={{ marginTop: 12, fontSize: 12, color: "rgb(var(--muted))" }}>
-                  This structured representation enables automation: covenant monitoring, obligation
-                  scheduling, ESG tracking, and trade due diligence.
-                </div>
-              </div>
+              )}
             </div>
-          </div>
-
-          <GuidedDemoCTA
-            step={1}
-            totalSteps={4}
-            title="Guided Demo • Next step"
-            body="Now jump to Servicing and toggle Stress scenario to surface covenant risk."
-            to={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
-            buttonLabel="Go to Servicing"
-          />
-        </>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

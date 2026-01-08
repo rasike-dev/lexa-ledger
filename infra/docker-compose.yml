@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: lexa-postgres
+    environment:
+      POSTGRES_USER: lexa
+      POSTGRES_PASSWORD: lexa
+      POSTGRES_DB: lexa
+    ports:
+      - "5432:5432"
+    volumes:
+      - lexa_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lexa -d lexa"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: lexa-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: lexa-minio
+    environment:
+      MINIO_ROOT_USER: lexa
+      MINIO_ROOT_PASSWORD: lexa_secret
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - lexa_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: lexa-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set lexa http://minio:9000 lexa lexa_secret &&
+      mc mb -p lexa/lexa-ledger || true &&
+      mc anonymous set download lexa/lexa-ledger || true &&
+      echo '✅ MinIO bucket ready';
+      "
+
+volumes:
+  lexa_pg:
+  lexa_minio:
+

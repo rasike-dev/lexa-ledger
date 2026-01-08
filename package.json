@@ -10,7 +10,20 @@
     "preview": "vite preview",
     "tauri": "tauri dev",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f --tail=200",
+    "api:dev": "pnpm --dir apps/api dev",
+    "api:build": "pnpm --dir apps/api build",
+    "api:test": "pnpm --dir apps/api test",
+    "worker:dev": "pnpm --dir apps/worker dev",
+    "worker:build": "pnpm --dir apps/worker build",
+    "worker:test": "pnpm --dir apps/worker test",
+    "prisma:migrate": "pnpm --dir apps/api prisma migrate dev",
+    "prisma:studio": "pnpm --dir apps/api prisma studio",
+    "db:seed": "pnpm --dir apps/api db:seed",
+    "dev:all": "pnpm infra:up && pnpm -r --parallel --filter ./apps/api --filter ./apps/worker dev & pnpm dev"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.16",

@@ -1,0 +1,20 @@
+{
+  "name": "@lexa/worker",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "bullmq": "^5.20.0",
+    "dotenv": "^17.2.3",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
+}

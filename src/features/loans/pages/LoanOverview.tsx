@@ -3,6 +3,7 @@ import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useLoanSnapshot } from "../hooks/useLoanSnapshot";
+import { useLoansList } from "../hooks/useLoansList";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 
@@ -30,6 +31,7 @@ export function LoanOverview() {
   }, [loanId, setActiveLoanId]);
 
   const q = useLoanSnapshot(loanId ?? null);
+  const loansList = useLoansList();
 
   return (
     <div>
@@ -45,6 +47,66 @@ export function LoanOverview() {
       <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
         Digital Loan Twin summary and lifecycle entry points.
       </p>
+
+      {/* Loan Selector + Create New Loan */}
+      {!loansList.isLoading && loansList.data?.length ? (
+        <div
+          style={{
+            marginTop: 16,
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgb(var(--border))",
+            background: "rgb(var(--card))",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <label style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+            <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Switch loan:</span>
+            <select
+              value={loanId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                setActiveLoanId(id);
+                navigate(`/loans/${id}/overview`);
+              }}
+              style={{
+                flex: 1,
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--background))",
+                color: "rgb(var(--foreground))",
+                fontSize: 14,
+              }}
+            >
+              {loansList.data.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.borrower} — {l.status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={() => navigate("/origination/ingest")}
+            style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--primary))",
+              background: "rgb(var(--primary))",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            + Create New Loan
+          </button>
+        </div>
+      ) : null}
 
       {q.isLoading ? (
         <div style={{ color: "rgb(var(--muted))" }}>Loading loan snapshot…</div>

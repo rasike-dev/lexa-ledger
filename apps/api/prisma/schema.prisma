@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ORG_ADMIN
+  AGENT
+  ANALYST
+  OPS
+  VIEWER
+}
+
+enum DocumentType {
+  FACILITY_AGREEMENT
+  AMENDMENT
+  OTHER
+}
+
+enum CovenantStatus {
+  PASS
+  WARN
+  FAIL
+}
+
+enum ScenarioMode {
+  BASE
+  STRESS
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships         Membership[]
+  loans               Loan[]
+  auditEvents         AuditEvent[]
+  documents           Document[]
+  documentVersions    DocumentVersion[]
+  clauses             Clause[]
+  loanScenarios       LoanScenario[]
+  covenants           Covenant[]
+  covenantTestResults CovenantTestResult[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  auditEvents AuditEvent[] @relation("AuditActor")
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      UserRole @default(VIEWER)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model Loan {
+  id             String   @id @default(cuid())
+  tenantId       String
+  borrower       String
+  agentBank      String
+  currency       String
+  facilityAmount BigInt
+  marginBps      Int
+  status         String
+  lastUpdatedAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  documents           Document[]
+  scenario            LoanScenario?
+  covenants           Covenant[]
+  covenantTestResults CovenantTestResult[]
+
+  @@index([tenantId])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  actorId     String?
+  type        String
+  summary     String
+  evidenceRef String?
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  tenantId  String
+  loanId    String
+  type      DocumentType @default(OTHER)
+  title     String
+  createdAt DateTime     @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  versions DocumentVersion[]
+
+  @@index([tenantId])
+  @@index([loanId])
+}
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  tenantId    String
+  documentId  String
+  version     Int
+  fileKey     String
+  fileName    String
+  contentType String
+  checksum    String?
+  uploadedAt  DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  clauses Clause[]
+
+  @@unique([documentId, version])
+  @@index([tenantId])
+}
+
+model Clause {
+  id                String   @id @default(cuid())
+  tenantId          String
+  documentVersionId String
+  clauseRef         String?
+  title             String?
+  text              String
+  riskTags          String[] // Postgres text[]
+  extractedAt       DateTime @default(now())
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([documentVersionId])
+}
+
+model LoanScenario {
+  id        String       @id @default(cuid())
+  tenantId  String
+  loanId    String       @unique
+  mode      ScenarioMode @default(BASE)
+  updatedAt DateTime     @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Covenant {
+  id          String   @id @default(cuid())
+  tenantId    String
+  loanId      String
+  code        String // e.g. "DSCR_MIN"
+  title       String // "Debt Service Coverage Ratio"
+  description String?
+  threshold   Float // numeric threshold used by rule
+  unit        String? // e.g. "x", "%", "USD"
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  results CovenantTestResult[]
+
+  @@unique([tenantId, loanId, code])
+  @@index([tenantId])
+  @@index([loanId])
+}
+
+model CovenantTestResult {
+  id         String         @id @default(cuid())
+  tenantId   String
+  loanId     String
+  covenantId String
+  scenario   ScenarioMode
+  value      Float
+  status     CovenantStatus
+  testedAt   DateTime       @default(now())
+  notes      String?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan     Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  covenant Covenant @relation(fields: [covenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([covenantId])
+  @@index([scenario])
+}
