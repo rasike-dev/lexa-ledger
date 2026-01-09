@@ -1,3 +1,4 @@
+import { env } from "@/app/config/env";
 import { useUIStore } from "@/app/store/uiStore";
 import { fetchServicingSummaryHttp, setServicingScenarioHttp, requestServicingRecomputeHttp } from "./httpServicingApi";
 import { fetchServicing as fetchServicingMock } from "./mockServicingApi";
@@ -28,19 +29,16 @@ async function fetchServicingSummaryMock(loanId: string) {
 }
 
 export async function fetchServicingSummary(loanId: string) {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchServicingSummaryMock(loanId) : fetchServicingSummaryHttp(loanId);
+  return env.apiMode === 'mock' ? fetchServicingSummaryMock(loanId) : fetchServicingSummaryHttp(loanId);
 }
 
 export async function setServicingScenario(loanId: string, scenario: "BASE" | "STRESS") {
-  const { demoMode } = useUIStore.getState();
-  if (demoMode) return { loanId, scenario }; // no-op in demo
+  if (env.apiMode === 'mock') return { loanId, scenario }; // no-op in mock
   return setServicingScenarioHttp(loanId, scenario);
 }
 
 export async function requestServicingRecompute(loanId: string, scenario?: "BASE" | "STRESS") {
-  const { demoMode } = useUIStore.getState();
-  if (demoMode) return { ok: true, loanId, scenario: scenario ?? "BASE" } as const;
+  if (env.apiMode === 'mock') return { ok: true, loanId, scenario: scenario ?? "BASE" } as const;
   return requestServicingRecomputeHttp(loanId, scenario);
 }
 

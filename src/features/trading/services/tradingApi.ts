@@ -1,15 +1,13 @@
-import { useUIStore } from "@/app/store/uiStore";
+import { env } from "@/app/config/env";
 import { fetchTradingSummaryHttp, requestTradingRecomputeHttp } from "./httpTradingApi";
 import { fetchTradingSummary as fetchTradingSummaryMock } from "./mockTradingApi";
 
 export async function fetchTradingSummary(loanId: string) {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchTradingSummaryMock(loanId) : fetchTradingSummaryHttp(loanId);
+  return env.apiMode === 'mock' ? fetchTradingSummaryMock(loanId) : fetchTradingSummaryHttp(loanId);
 }
 
 export async function requestTradingRecompute(loanId: string) {
-  const { demoMode } = useUIStore.getState();
-  if (demoMode) return { ok: true as const, loanId };
+  if (env.apiMode === 'mock') return { ok: true as const, loanId };
   return requestTradingRecomputeHttp(loanId);
 }
 

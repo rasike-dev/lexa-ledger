@@ -1,14 +1,12 @@
-import { useUIStore } from "@/app/store/uiStore";
+import { env } from "@/app/config/env";
 import { fetchPortfolioLoansHttp, fetchPortfolioSummaryHttp } from "./httpPortfolioApi";
 import { fetchPortfolioLoans as fetchPortfolioLoansMock, fetchPortfolioSummary as fetchPortfolioSummaryMock } from "./mockPortfolioApi";
 
 export async function fetchPortfolioLoans() {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchPortfolioLoansMock() : fetchPortfolioLoansHttp();
+  return env.apiMode === 'mock' ? fetchPortfolioLoansMock() : fetchPortfolioLoansHttp();
 }
 
 export async function fetchPortfolioSummary() {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchPortfolioSummaryMock() : fetchPortfolioSummaryHttp();
+  return env.apiMode === 'mock' ? fetchPortfolioSummaryMock() : fetchPortfolioSummaryHttp();
 }
 

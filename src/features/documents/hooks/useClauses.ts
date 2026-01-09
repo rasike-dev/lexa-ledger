@@ -1,12 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tantml:react-query";
 import { fetchClauses } from "../services/documentsApi";
-import { useUIStore } from "@/app/store/uiStore";
 
 export function useClauses(documentVersionId: string | null) {
-  const demoMode = useUIStore((s) => s.demoMode);
-
   return useQuery({
-    queryKey: ["clauses", documentVersionId, demoMode],
+    queryKey: ["clauses", documentVersionId],
     queryFn: async () => {
       if (!documentVersionId) throw new Error("No documentVersionId");
       return fetchClauses(documentVersionId);

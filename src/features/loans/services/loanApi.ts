@@ -7,15 +7,13 @@ import {
 
 import { fetchLoanSnapshotHttp, fetchAuditTimelineHttp } from "./httpLoanApi";
 
-import { useUIStore } from "@/app/store/uiStore";
+import { env } from "@/app/config/env";
 
 export async function fetchLoanSnapshot(loanId: string) {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchLoanSnapshotMock(loanId) : fetchLoanSnapshotHttp(loanId);
+  return env.apiMode === 'mock' ? fetchLoanSnapshotMock(loanId) : fetchLoanSnapshotHttp(loanId);
 }
 
 export async function fetchAuditTimeline(loanId: string) {
-  const { demoMode } = useUIStore.getState();
-  return demoMode ? fetchAuditTimelineMock(loanId) : fetchAuditTimelineHttp(loanId);
+  return env.apiMode === 'mock' ? fetchAuditTimelineMock(loanId) : fetchAuditTimelineHttp(loanId);
 }
 

@@ -1,14 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { useUIStore } from "@/app/store/uiStore";
+import { useQuery } from "@tantml:react-query";
 import { fetchServicingSummary } from "../services/servicingApi";
-import { fetchServicing as fetchServicingMock } from "../services/mockServicingApi";
 import type { CovenantComputed, CovenantStatus, ServicingPayload } from "../types";
 
 export function useServicing(loanId: string | null) {
-  const demoMode = useUIStore((s) => s.demoMode);
-
   return useQuery({
-    queryKey: ["servicingSummary", loanId, demoMode],
+    queryKey: ["servicingSummary", loanId],
     queryFn: async () => {
       if (!loanId) throw new Error("No loanId");
       return fetchServicingSummary(loanId);
