@@ -1,50 +1,49 @@
 {
-  "asOf": "2026-01-05T09:00:00.000Z",
-  "loans": [
-    {
-      "id": "demo-loan-001",
-      "borrower": "GreenSteel Manufacturing plc",
-      "agentBank": "Example Agent Bank",
-      "currency": "EUR",
-      "facilityAmount": 250000000,
-      "marginBps": 175,
-      "status": "Active",
-      "esgClauses": 3,
-      "covenants": 5,
-      "riskFlag": "WATCH",
-      "tradeReadyScore": 82,
-      "nextObligationDue": "2026-01-15T00:00:00.000Z",
-      "lastUpdatedAt": "2026-01-04T10:30:00.000Z"
-    },
-    {
-      "id": "demo-loan-002",
-      "borrower": "Nordic Logistics Group",
-      "agentBank": "Example Agent Bank",
-      "currency": "GBP",
-      "facilityAmount": 180000000,
-      "marginBps": 210,
-      "status": "Active",
-      "esgClauses": 2,
-      "covenants": 4,
-      "riskFlag": "OK",
-      "tradeReadyScore": 91,
-      "nextObligationDue": "2026-01-12T00:00:00.000Z",
-      "lastUpdatedAt": "2026-01-03T14:20:00.000Z"
-    },
-    {
-      "id": "demo-loan-003",
-      "borrower": "SunRiver Renewables Ltd",
-      "agentBank": "Example Agent Bank",
-      "currency": "USD",
-      "facilityAmount": 320000000,
-      "marginBps": 160,
-      "status": "Active",
-      "esgClauses": 5,
-      "covenants": 6,
-      "riskFlag": "BREACH_RISK",
-      "tradeReadyScore": 68,
-      "nextObligationDue": "2026-01-10T00:00:00.000Z",
-      "lastUpdatedAt": "2026-01-04T18:05:00.000Z"
-    }
-  ]
+  "summary": {
+    "totals": { "loans": 3, "facilityAmount": 750000000 },
+    "tradingBands": { "green": 1, "amber": 1, "red": 1 },
+    "servicing": { "loansWithFails": 2, "totalFails": 3 },
+    "esg": { "evidencePending": 1, "offTrackKpis": 5 },
+    "lastRefreshedAt": "2026-01-09T12:00:00.000Z"
+  },
+  "loans": {
+    "loans": [
+      {
+        "id": "demo-loan-001",
+        "borrower": "GreenSteel Manufacturing plc",
+        "currency": "EUR",
+        "facilityAmount": 250000000,
+        "status": "Active",
+        "lastUpdatedAt": "2026-01-04T10:30:00.000Z",
+        "documents": { "count": 3, "latestFacilityAgreementVersion": 2 },
+        "servicing": { "scenario": "BASE", "lastTestedAt": "2026-01-08T14:30:00.000Z", "failingCount": 1 },
+        "trading": { "score": 82, "band": "AMBER", "computedAt": "2026-01-08T10:00:00.000Z" },
+        "esg": { "kpiCount": 5, "offTrackCount": 2, "evidencePendingCount": 1 }
+      },
+      {
+        "id": "demo-loan-002",
+        "borrower": "Nordic Logistics Group",
+        "currency": "GBP",
+        "facilityAmount": 180000000,
+        "status": "Active",
+        "lastUpdatedAt": "2026-01-03T14:20:00.000Z",
+        "documents": { "count": 2, "latestFacilityAgreementVersion": 1 },
+        "servicing": { "scenario": "BASE", "lastTestedAt": "2026-01-07T09:15:00.000Z", "failingCount": 0 },
+        "trading": { "score": 91, "band": "GREEN", "computedAt": "2026-01-07T16:30:00.000Z" },
+        "esg": { "kpiCount": 4, "offTrackCount": 0, "evidencePendingCount": 0 }
+      },
+      {
+        "id": "demo-loan-003",
+        "borrower": "SunRiver Renewables Ltd",
+        "currency": "USD",
+        "facilityAmount": 320000000,
+        "status": "Active",
+        "lastUpdatedAt": "2026-01-04T18:05:00.000Z",
+        "documents": { "count": 4, "latestFacilityAgreementVersion": 3 },
+        "servicing": { "scenario": "STRESS", "lastTestedAt": "2026-01-09T11:00:00.000Z", "failingCount": 2 },
+        "trading": { "score": 68, "band": "RED", "computedAt": "2026-01-09T08:45:00.000Z" },
+        "esg": { "kpiCount": 6, "offTrackCount": 3, "evidencePendingCount": 0 }
+      }
+    ]
+  }
 }

@@ -28,5 +28,20 @@ export class ServicingController {
       actorName: actor,
     }) as any;
   }
+
+  @Post("recompute")
+  async recompute(
+    @Headers("x-tenant-id") tenantId: string,
+    @Headers("x-actor") actor: string | undefined,
+    @Param("loanId") loanId: string,
+    @Body() body: { scenario?: "BASE" | "STRESS" },
+  ) {
+    return this.servicing.requestRecompute({
+      tenantId,
+      loanId,
+      scenario: body?.scenario,
+      actorName: actor,
+    });
+  }
 }
 

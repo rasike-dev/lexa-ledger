@@ -5,6 +5,8 @@ import { useUIStore } from "../../../app/store/uiStore";
 import { useLoanDocuments } from "../../documents/hooks/useLoanDocuments";
 import { useClauses } from "../../documents/hooks/useClauses";
 import { createDocumentContainerHttp, uploadDocumentVersionHttp } from "../../documents/services/httpDocumentsWriteApi";
+import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { loanPaths } from "../../../app/routes/paths";
 
 function badgeColors(tag: string) {
   const map: Record<string, { bg: string; fg: string }> = {
@@ -109,114 +111,105 @@ export function LoanDocuments() {
       </p>
 
       {/* B) Create + Upload UI */}
-      {!demoMode && (
-        <div
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          marginTop: 16,
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 12,
+          border: demoMode ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgb(var(--border))",
+          background: demoMode ? "rgba(245,158,11,0.08)" : "rgb(var(--card))",
+        }}
+      >
+        <input
+          value={newTitle}
+          onChange={(e) => !demoMode && setNewTitle(e.target.value)}
+          placeholder="Document title"
+          disabled={demoMode}
           style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            marginTop: 16,
-            marginBottom: 16,
-            padding: 12,
-            borderRadius: 12,
+            flex: 1,
+            padding: "6px 12px",
+            borderRadius: 8,
             border: "1px solid rgb(var(--border))",
-            background: "rgb(var(--card))",
-          }}
-        >
-          <input
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Document title"
-            style={{
-              flex: 1,
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "1px solid rgb(var(--border))",
-              background: "rgb(var(--background))",
-              color: "rgb(var(--foreground))",
-              fontSize: 14,
-            }}
-          />
-          <select
-            value={newType}
-            onChange={(e) => setNewType(e.target.value)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "1px solid rgb(var(--border))",
-              background: "rgb(var(--background))",
-              color: "rgb(var(--foreground))",
-              fontSize: 14,
-            }}
-          >
-            <option value="FACILITY_AGREEMENT">Facility Agreement</option>
-            <option value="AMENDMENT">Amendment</option>
-            <option value="OTHER">Other</option>
-          </select>
-
-          <button
-            onClick={onCreateDocument}
-            disabled={demoMode}
-            style={{
-              padding: "6px 16px",
-              borderRadius: 8,
-              border: "1px solid rgb(var(--primary))",
-              background: "rgb(var(--primary))",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: demoMode ? "not-allowed" : "pointer",
-              opacity: demoMode ? 0.5 : 1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Create Document
-          </button>
-
-          <label
-            style={{
-              padding: "6px 16px",
-              borderRadius: 8,
-              border: "1px solid rgb(var(--border))",
-              background: selectedDocumentId && !demoMode ? "rgb(var(--accent))" : "rgb(var(--muted))",
-              color: selectedDocumentId && !demoMode ? "rgb(var(--accent-foreground))" : "rgb(var(--muted-foreground))",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: selectedDocumentId && !demoMode ? "pointer" : "not-allowed",
-              opacity: selectedDocumentId && !demoMode ? 1 : 0.5,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Upload Version
-            <input
-              type="file"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onUploadVersion(f);
-              }}
-              disabled={demoMode || !selectedDocumentId}
-              style={{ display: "none" }}
-            />
-          </label>
-        </div>
-      )}
-
-      {demoMode && (
-        <div
-          style={{
-            marginTop: 16,
-            marginBottom: 16,
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(245,158,11,0.3)",
-            background: "rgba(245,158,11,0.08)",
-            color: "rgb(245,158,11)",
+            background: demoMode ? "rgb(var(--muted))" : "rgb(var(--background))",
+            color: demoMode ? "rgb(var(--muted-foreground))" : "rgb(var(--foreground))",
             fontSize: 14,
+            cursor: demoMode ? "not-allowed" : "text",
+          }}
+        />
+        <select
+          value={newType}
+          onChange={(e) => !demoMode && setNewType(e.target.value)}
+          disabled={demoMode}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 8,
+            border: "1px solid rgb(var(--border))",
+            background: demoMode ? "rgb(var(--muted))" : "rgb(var(--background))",
+            color: demoMode ? "rgb(var(--muted-foreground))" : "rgb(var(--foreground))",
+            fontSize: 14,
+            cursor: demoMode ? "not-allowed" : "pointer",
           }}
         >
-          📋 Demo Mode: Create/Upload disabled. Toggle demo mode OFF to use real backend.
-        </div>
-      )}
+          <option value="FACILITY_AGREEMENT">Facility Agreement</option>
+          <option value="AMENDMENT">Amendment</option>
+          <option value="OTHER">Other</option>
+        </select>
+
+        <button
+          onClick={onCreateDocument}
+          disabled={demoMode}
+          style={{
+            padding: "6px 16px",
+            borderRadius: 8,
+            border: demoMode ? "1px solid rgb(var(--muted))" : "1px solid rgb(var(--primary))",
+            background: demoMode ? "rgb(var(--muted))" : "rgb(var(--primary))",
+            color: "white",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: demoMode ? "not-allowed" : "pointer",
+            opacity: demoMode ? 0.6 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Create Document
+        </button>
+
+        <label
+          style={{
+            padding: "6px 16px",
+            borderRadius: 8,
+            border: "1px solid rgb(var(--border))",
+            background:
+              selectedDocumentId && !demoMode
+                ? "rgb(var(--accent))"
+                : "rgb(var(--muted))",
+            color:
+              selectedDocumentId && !demoMode
+                ? "rgb(var(--accent-foreground))"
+                : "rgb(var(--muted-foreground))",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: selectedDocumentId && !demoMode ? "pointer" : "not-allowed",
+            opacity: selectedDocumentId && !demoMode ? 1 : 0.6,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Upload Version
+          <input
+            type="file"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onUploadVersion(f);
+            }}
+            disabled={demoMode || !selectedDocumentId}
+            style={{ display: "none" }}
+          />
+        </label>
+      </div>
 
       {docsQuery.isLoading && (
         <div style={{ color: "rgb(var(--muted))", marginTop: 12 }}>Loading documents…</div>
@@ -347,6 +340,15 @@ export function LoanDocuments() {
           );
         })}
       </div>
+
+      <GuidedDemoCTA
+        step={1}
+        totalSteps={4}
+        title="Guided Demo • Next step"
+        body="Next, open Servicing to see covenant monitoring and scenario simulation in action."
+        to={loanPaths.servicing(loanId ?? "demo-loan-001")}
+        buttonLabel="Go to Servicing"
+      />
     </div>
   );
 }

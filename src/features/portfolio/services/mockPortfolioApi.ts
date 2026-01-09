@@ -34,3 +34,14 @@ export function computePortfolioKpis(data: PortfolioData): PortfolioKpis {
     esgClausesTotal,
   };
 }
+
+// New exports for demoMode consistency (matches backend API shape)
+export async function fetchPortfolioLoans() {
+  await sleep(250);
+  return (portfolio as any).loans;
+}
+
+export async function fetchPortfolioSummary() {
+  await sleep(250);
+  return (portfolio as any).summary;
+}

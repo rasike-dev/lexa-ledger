@@ -10,7 +10,9 @@
     "test": "jest",
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "seed:servicing": "tsx prisma/seed.servicing.ts"
+    "seed:servicing": "tsx prisma/seed.servicing.ts",
+    "seed:trading": "tsx prisma/seed.trading.ts",
+    "seed:esg": "tsx prisma/seed.esg.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.965.0",

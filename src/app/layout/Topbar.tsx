@@ -48,6 +48,7 @@ export function Topbar() {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {demoMode && (
           <div
+            className="demo-pulse"
             style={{
               display: "inline-flex",
               alignItems: "center",

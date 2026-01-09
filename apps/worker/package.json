@@ -9,9 +9,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
-    "bullmq": "^5.20.0",
+    "bullmq": "^5.66.4",
     "dotenv": "^17.2.3",
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.9.0",
+    "minio": "^8.0.2"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

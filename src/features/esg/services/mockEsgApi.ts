@@ -1,6 +1,7 @@
 import data from "../../../mocks/fixtures/esg_demo_001.json";
 import { EsgPayloadSchema } from "../schemas";
 import type { EsgPayload, EsgScorecard, KpiStatus } from "../types";
+import type { EsgSummary } from "./httpEsgApi";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -10,6 +11,44 @@ export async function fetchEsg(loanId: string): Promise<EsgPayload> {
   await sleep(250);
   if (loanId === "demo-loan-001") return EsgPayloadSchema.parse(data);
   return EsgPayloadSchema.parse({ ...data, loanId });
+}
+
+// New format for live API compatibility
+export async function fetchEsgSummary(loanId: string): Promise<EsgSummary> {
+  await sleep(250);
+  
+  // Convert old fixture format to new API format
+  const oldData = loanId === "demo-loan-001" ? data : { ...data, loanId };
+  
+  return {
+    loanId,
+    kpis: (oldData.kpis as any[]).map((k: any) => ({
+      id: k.id,
+      type: k.kpiType || "OTHER",
+      title: k.name,
+      unit: k.unit,
+      target: k.target,
+      current: k.actual,
+      asOfDate: new Date().toISOString(),
+    })),
+    evidence: (oldData.evidence as any[]).map((e: any) => ({
+      id: e.id,
+      kpiId: e.appliesToKpiIds?.[0] || null,
+      type: e.type || "REPORT",
+      title: e.title,
+      fileName: e.sourceRef || "document.pdf",
+      contentType: "application/pdf",
+      fileKey: `demo/${e.id}`,
+      checksum: null,
+      uploadedAt: new Date().toISOString(),
+      latestVerification: {
+        status: e.status === "VERIFIED" ? "VERIFIED" : e.status === "PENDING" ? "PENDING" : "NEEDS_REVIEW",
+        confidence: e.status === "VERIFIED" ? 0.9 : 0.5,
+        notes: `Demo fixture data (${e.status})`,
+        checkedAt: new Date().toISOString(),
+      },
+    })),
+  };
 }
 
 // Simple, explainable KPI status model for demo:

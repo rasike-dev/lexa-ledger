@@ -2,6 +2,10 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient } from "@prisma/client";
+import { startServicingRecomputeWorker } from "./servicing.recompute";
+import { startTradingRecomputeWorker } from "./trading.recompute";
+import { startEsgVerifyWorker } from "./esg.verify";
+import { minioStorage } from "./storage/minioStorage";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -85,8 +89,16 @@ new Worker<DocumentExtractJob>(
 
     return { clauseCount: clauses.length };
   },
-  { connection },
+  { connection }
 );
 
 console.log("🧠 Worker listening on queue: document.extract");
 
+// Start servicing recompute worker
+startServicingRecomputeWorker();
+
+// Start trading recompute worker
+startTradingRecomputeWorker();
+
+// Start ESG verify worker
+startEsgVerifyWorker(minioStorage);

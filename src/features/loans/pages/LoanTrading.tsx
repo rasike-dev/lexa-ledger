@@ -6,6 +6,8 @@ import { loanPaths } from "../../../app/routes/paths";
 import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
 import { useTradingChecklist } from "../../trading/hooks/useTradingChecklist";
+import { useTradingSummary } from "../../trading/hooks/useTradingSummary";
+import { useTradingRecompute } from "../../trading/hooks/useTradingRecompute";
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
@@ -64,19 +66,33 @@ export function LoanTrading() {
   const { loanId } = useParams();
   const navigate = useNavigate();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const demoMode = useUIStore((s) => s.demoMode);
 
   const scenario = useUIStore((s) =>
     loanId ? (s.servicingScenarioByLoan[loanId] ?? "base") : "base"
   );
 
+  // Declare all data hooks before using them in effects
+  const portfolioQ = usePortfolio();
+  const servicingQ = useServicing(loanId ?? null);
+  const checklistQ = useTradingChecklist(loanId ?? null);
+  const tradingSummary = useTradingSummary(loanId ?? null);
+  const recompute = useTradingRecompute(loanId ?? null);
+  const esgQ = useEsg(loanId ?? null);
+
   React.useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
-  const portfolioQ = usePortfolio();
-  const servicingQ = useServicing(loanId ?? null);
-  const checklistQ = useTradingChecklist(loanId ?? null);
-  const esgQ = useEsg(loanId ?? null);
+  // Auto-refresh after recompute (simple poll for demo)
+  React.useEffect(() => {
+    if (recompute.isSuccess && !demoMode) {
+      const timerId = setTimeout(() => {
+        tradingSummary.refetch();
+      }, 2000); // Wait 2 seconds for worker to process
+      return () => clearTimeout(timerId);
+    }
+  }, [recompute.isSuccess, demoMode, tradingSummary]);
 
   const baseScore = React.useMemo(() => {
     const id = loanId ?? "";
@@ -91,13 +107,20 @@ export function LoanTrading() {
   }, [servicingQ.data, scenario]);
 
   const scoreModel = React.useMemo(() => {
+    // Use live trading summary when available (demoMode OFF)
+    if (!demoMode && tradingSummary.data) {
+      const score = tradingSummary.data.score;
+      const tier = score >= 85 ? "Trade-ready" : score >= 70 ? "Needs review" : "Not ready";
+      return { score, tier, penalty: 0, breach: 0, watch: 0 };
+    }
+
+    // Fallback to old covenant-based calculation (demoMode ON or no data yet)
     const { penalty, breach, watch } = covenantPenalty(covenantStatuses);
     const score = clamp(baseScore - penalty, 0, 100);
-
     const tier = score >= 85 ? "Trade-ready" : score >= 70 ? "Needs review" : "Not ready";
 
     return { score, tier, penalty, breach, watch };
-  }, [baseScore, covenantStatuses]);
+  }, [demoMode, tradingSummary.data, baseScore, covenantStatuses]);
 
   const evidenceCoverage = React.useMemo(() => {
     if (!esgQ.data) return null;
@@ -105,6 +128,38 @@ export function LoanTrading() {
   }, [esgQ.data]);
 
   const checklist = React.useMemo(() => {
+    // Use live trading summary when available (demoMode OFF)
+    if (!demoMode && tradingSummary.data) {
+      const items = tradingSummary.data.checklist.map((c) => {
+        // Map DONE/OPEN/BLOCKED to PASS/REVIEW/FAIL for statusChip compatibility
+        const status: ChecklistStatus = 
+          c.status === "DONE" ? "PASS" : 
+          c.status === "BLOCKED" ? "FAIL" : 
+          "REVIEW";
+        
+        return {
+          id: c.id,
+          title: c.title,
+          status,
+          auto: true, // Assume automated for live data
+          sourceRef: c.evidenceRef ?? undefined,
+          statusBase: status,
+          statusStress: status,
+        };
+      });
+
+      const counts = items.reduce(
+        (acc, i) => {
+          acc[i.status] += 1;
+          return acc;
+        },
+        { PASS: 0, REVIEW: 0, FAIL: 0 } as Record<ChecklistStatus, number>
+      );
+
+      return { items, counts };
+    }
+
+    // Fallback to old fixture data (demoMode ON)
     if (!checklistQ.data) return null;
 
     const items = checklistQ.data.checklist.map((c) => {
@@ -134,7 +189,7 @@ export function LoanTrading() {
     );
 
     return { items, counts };
-  }, [checklistQ.data, scenario, evidenceCoverage]);
+  }, [demoMode, tradingSummary.data, checklistQ.data, scenario, evidenceCoverage]);
 
   return (
     <div>
@@ -174,6 +229,74 @@ export function LoanTrading() {
           }
         />
       </div>
+
+      {/* Control Panel (live data only) */}
+      {!demoMode && tradingSummary.data && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgb(var(--border))",
+            background: "rgb(var(--card))",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ fontSize: 12, color: "rgb(var(--muted))" }}>Last computed:</div>
+            <div style={{ fontWeight: 600 }}>
+              {tradingSummary.data.computedAt 
+                ? new Date(tradingSummary.data.computedAt).toLocaleString()
+                : "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginLeft: "auto" }}>
+              Band: 
+            </div>
+            <span
+              style={{
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: 
+                  tradingSummary.data.band === "GREEN" ? "rgba(16,185,129,0.12)" :
+                  tradingSummary.data.band === "AMBER" ? "rgba(245,158,11,0.12)" :
+                  "rgba(220,38,38,0.12)",
+                color: 
+                  tradingSummary.data.band === "GREEN" ? "rgb(16,185,129)" :
+                  tradingSummary.data.band === "AMBER" ? "rgb(245,158,11)" :
+                  "rgb(220,38,38)",
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              {tradingSummary.data.band}
+            </span>
+            <button
+              onClick={() => recompute.mutate()}
+              disabled={recompute.isPending}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 10,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--bg))",
+                fontWeight: 900,
+                cursor: recompute.isPending ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {recompute.isPending ? (
+                <>
+                  <span className="spinner" /> Recomputing...
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: 16 }}>⟳</span> Recompute Now
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
         {/* Checklist */}

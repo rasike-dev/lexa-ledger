@@ -1,333 +1,179 @@
-import React from "react";
-import { useParams, NavLink } from "react-router-dom";
-import { useUIStore } from "../../../app/store/uiStore";
-import { loanPaths } from "../../../app/routes/paths";
+import { useMemo, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useTradingSummary } from "@/features/trading/hooks/useTradingSummary";
+import { loanPaths } from "@/app/routes/paths";
 
-import { useLoanSnapshot } from "../../loans/hooks/useLoanSnapshot";
-import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
-import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
-import { useTradingChecklist } from "../hooks/useTradingChecklist";
-import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
-import { buildDeepLink } from "../../../app/utils/deepLink";
-
-type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
-type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
-
-function covenantPenalty(statuses: CovenantStatus[]) {
-  const breach = statuses.filter((s) => s === "BREACH_RISK").length;
-  const watch = statuses.filter((s) => s === "WATCH").length;
-  const penalty = breach * 18 + watch * 6;
-  return { penalty, breach, watch };
+function bandLabel(band: string) {
+  if (band === "GREEN") return "Trade-ready";
+  if (band === "AMBER") return "Nearly ready";
+  return "Not ready";
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function fmtDateTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-function statusChip(status: ChecklistStatus) {
-  if (status === "PASS") return { cls: "chip chip--pass", label: "PASS" };
-  if (status === "REVIEW") return { cls: "chip chip--review", label: "REVIEW" };
-  return { cls: "chip chip--fail", label: "FAIL" };
-}
-
-export function TradingReport() {
+export default function TradingReport() {
   const { loanId } = useParams();
-  const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const navigate = useNavigate();
+  const q = useTradingSummary(loanId ?? null);
 
-  React.useEffect(() => {
-    if (loanId) setActiveLoanId(loanId);
-  }, [loanId, setActiveLoanId]);
+  // Auto-trigger print dialog when report loads (optional)
+  useEffect(() => {
+    if (q.data) {
+      // Small delay to ensure content is rendered
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [q.data]);
 
-  const scenario = useUIStore((s) =>
-    loanId ? (s.servicingScenarioByLoan[loanId] ?? "base") : "base"
-  );
-
-  const snapshotQ = useLoanSnapshot(loanId ?? null);
-  const portfolioQ = usePortfolio();
-  const servicingQ = useServicing(loanId ?? null);
-  const checklistQ = useTradingChecklist(loanId ?? null);
-
-  const baseScore = React.useMemo(() => {
-    const id = loanId ?? "";
-    const row = portfolioQ.data?.loans.find((l) => l.id === id);
-    return row?.tradeReadyScore ?? 80;
-  }, [portfolioQ.data, loanId]);
-
-  const covenantComputed = React.useMemo(() => {
-    if (!servicingQ.data) return [];
-    return enrichCovenants(servicingQ.data, scenario);
-  }, [servicingQ.data, scenario]);
-
-  const covenantStatuses = React.useMemo(
-    () => covenantComputed.map((c) => c.status as CovenantStatus),
-    [covenantComputed]
-  );
-
-  const scoreModel = React.useMemo(() => {
-    const { penalty, breach, watch } = covenantPenalty(covenantStatuses);
-    const score = clamp(baseScore - penalty, 0, 100);
-    const tier = score >= 85 ? "Trade-ready" : score >= 70 ? "Needs review" : "Not ready";
-    return { score, tier, penalty, breach, watch };
-  }, [baseScore, covenantStatuses]);
-
-  const checklist = React.useMemo(() => {
-    if (!checklistQ.data) return null;
-    const items = checklistQ.data.checklist.map((c) => ({
-      ...c,
-      status: (scenario === "stress" ? c.statusStress : c.statusBase) as ChecklistStatus,
+  const grouped = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const item of q.data?.checklist ?? []) {
+      const arr = map.get(item.category) ?? [];
+      arr.push(item);
+      map.set(item.category, arr);
+    }
+    return Array.from(map.entries()).map(([category, items]) => ({
+      category,
+      items: items.sort((a, b) => a.code.localeCompare(b.code)),
     }));
-    const counts = items.reduce(
-      (acc, i) => {
-        acc[i.status] += 1;
-        return acc;
-      },
-      { PASS: 0, REVIEW: 0, FAIL: 0 } as Record<ChecklistStatus, number>
-    );
-    return { items, counts };
-  }, [checklistQ.data, scenario]);
+  }, [q.data]);
 
-  const ready =
-    !snapshotQ.isLoading &&
-    !snapshotQ.isError &&
-    !!snapshotQ.data &&
-    !checklistQ.isLoading &&
-    !checklistQ.isError &&
-    !!checklist;
+  const blockers = useMemo(() => {
+    const items = (q.data?.checklist ?? []).filter((i) => i.status !== "DONE");
+    // weight desc, blocked first
+    return items.sort((a, b) => {
+      const pa = a.status === "BLOCKED" ? 0 : 1;
+      const pb = b.status === "BLOCKED" ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return b.weight - a.weight;
+    });
+  }, [q.data]);
 
-  const generatedAt = new Date().toISOString();
+  const nextActions = useMemo(() => {
+    const actions: string[] = [];
+    for (const i of blockers) {
+      if (i.code.startsWith("DOCS.")) actions.push(`Upload/validate documents: ${i.title}`);
+      else if (i.code.startsWith("SERVICING.")) actions.push(`Complete servicing readiness: ${i.title}`);
+      else if (i.code.startsWith("ESG.")) actions.push(`Add ESG evidence/KPIs: ${i.title}`);
+      else if (i.code.startsWith("KYC.")) actions.push(`Complete KYC: ${i.title}`);
+      else actions.push(`Resolve: ${i.title}`);
+    }
+    // dedupe + keep top 6
+    return Array.from(new Set(actions)).slice(0, 6);
+  }, [blockers]);
+
+  if (q.isLoading) return <div style={{ padding: 16 }}>Loading trading report…</div>;
+  if (q.isError || !q.data) return <div style={{ padding: 16 }}>Failed to load trading report.</div>;
+
+  const { score, band, computedAt } = q.data;
 
   return (
-    <div className="print-root">
-      <div id="top" style={{ scrollMarginTop: 12 }} />
-      <div className="no-print report-actions">
-        <NavLink className="link" to={loanPaths.trading(loanId ?? "demo-loan-001")}>
-          ← Back to Trading
-        </NavLink>
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <CopyLinkButton
-            href={buildDeepLink(`${loanPaths.tradingReport(loanId ?? "demo-loan-001")}#top`)}
-            label="Copy link to Trading Report"
-          />
-          <button className="btn" onClick={() => window.print()}>
-            Print / Save as PDF
+    <div style={{ padding: 16, maxWidth: 980 }}>
+      {/* Action buttons - hide when printing */}
+      <div className="no-print" style={{ display: "flex", gap: 12, marginBottom: 16, justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ margin: 0 }}>Trading Readiness Report</h2>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            onClick={() => navigate(loanPaths.trading(loanId ?? ""))}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 10,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--card))",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            ← Back to Trading
+          </button>
+          <button
+            onClick={() => window.print()}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 10,
+              border: "none",
+              background: "rgb(var(--primary))",
+              color: "white",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            🖨️ Print / Download PDF
           </button>
         </div>
       </div>
 
-      <div className="report">
-        <header className="report-header">
-          <div>
-            <div className="report-title">Trade Diligence Snapshot</div>
-            <div className="report-subtitle">LEXA Ledger • Secondary Loan Trading</div>
+      <h2 className="print-only" style={{ margin: "0 0 16px 0" }}>Trading Readiness Report</h2>
+
+      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 12 }}>
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10 }}>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Readiness score</div>
+          <div style={{ fontSize: 24, fontWeight: 800 }}>{score} / 100</div>
+        </div>
+
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10 }}>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Band</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {band} — {bandLabel(band)}
           </div>
-          <div className="meta">
-            <div>
-              <span className="meta-k">Loan ID:</span> <span className="mono">{loanId ?? "-"}</span>
-            </div>
-            <div>
-              <span className="meta-k">Scenario:</span>{" "}
-              {scenario === "base" ? "Base actuals" : "Stress scenario"}
-            </div>
-            <div>
-              <span className="meta-k">Generated:</span> {fmtDateTime(generatedAt)}
-            </div>
+        </div>
+
+        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, flex: 1 }}>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Computed at</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>
+            {computedAt ? new Date(computedAt).toLocaleString() : "—"}
           </div>
-        </header>
-
-        {!ready ? (
-          <div className="muted">Loading report data…</div>
-        ) : (
-          <>
-            {/* Borrower / facility block */}
-            <section className="section grid-2">
-              <div className="card">
-                <div className="card-h">Borrower & Facility</div>
-                <div className="card-b">
-                  <div className="big">{snapshotQ.data.borrower}</div>
-                  <div className="muted" style={{ marginTop: 6 }}>
-                    Agent: {snapshotQ.data.agentBank} • Status: {snapshotQ.data.status}
-                  </div>
-                  <div className="kv-grid" style={{ marginTop: 10 }}>
-                    <KV
-                      k="Facility"
-                      v={`${snapshotQ.data.currency} ${Math.round(snapshotQ.data.facilityAmount).toLocaleString()}`}
-                    />
-                    <KV k="Margin" v={`${snapshotQ.data.marginBps} bps`} />
-                    <KV k="Covenants" v={String(snapshotQ.data.covenants)} />
-                    <KV k="ESG clauses" v={String(snapshotQ.data.esgClauses)} />
-                    <KV k="Last updated" v={fmtDateTime(snapshotQ.data.lastUpdatedAt)} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-h">Readiness Summary</div>
-                <div className="card-b">
-                  <div className="score-row">
-                    <div>
-                      <div className="score">{scoreModel.score} / 100</div>
-                      <div className="pill">{scoreModel.tier}</div>
-                    </div>
-                    <div className="muted">
-                      Base score: <b>{baseScore}</b>
-                      <br />
-                      Risk adjustment: <b>-{scoreModel.penalty}</b>
-                      <br />
-                      Covenant flags: <b>{scoreModel.breach}</b> breach-risk,{" "}
-                      <b>{scoreModel.watch}</b> watch
-                    </div>
-                  </div>
-
-                  <div className="muted" style={{ marginTop: 10 }}>
-                    Model: Score = {baseScore} − ({scoreModel.breach}×18 + {scoreModel.watch}×6)
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Covenant posture */}
-            <section className="section">
-              <div className="section-h">Covenant posture (scenario-based)</div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Covenant</th>
-                    <th>Threshold</th>
-                    <th>Actual</th>
-                    <th>Headroom</th>
-                    <th>Status</th>
-                    <th>Frequency</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {covenantComputed.map((c) => (
-                    <tr key={c.id}>
-                      <td>{c.name}</td>
-                      <td className="mono">
-                        {c.operator} {c.threshold} {c.unit}
-                      </td>
-                      <td className="mono">
-                        {c.actual} {c.unit}
-                      </td>
-                      <td className="mono">
-                        {c.headroom.toFixed(2)} {c.unit}
-                      </td>
-                      <td>
-                        <span
-                          className={`chip ${c.status === "OK" ? "chip--pass" : c.status === "WATCH" ? "chip--review" : "chip--fail"}`}
-                        >
-                          {c.status}
-                        </span>
-                      </td>
-                      <td>{c.testFrequency}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            {/* Diligence checklist */}
-            <section className="section">
-              <div className="section-h">
-                Diligence checklist
-                <span className="counts">
-                  <span className="chip chip--pass">PASS: {checklist.counts.PASS}</span>
-                  <span className="chip chip--review">REVIEW: {checklist.counts.REVIEW}</span>
-                  <span className="chip chip--fail">FAIL: {checklist.counts.FAIL}</span>
-                </span>
-              </div>
-
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Check</th>
-                    <th>Method</th>
-                    <th>Status</th>
-                    <th>Evidence / Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {checklist.items.map((i) => {
-                    const chip = statusChip(i.status);
-                    return (
-                      <tr key={i.id}>
-                        <td>{i.title}</td>
-                        <td>{i.auto ? "Automated" : "Human review"}</td>
-                        <td>
-                          <span className={chip.cls}>{chip.label}</span>
-                        </td>
-                        <td className="mono">{i.sourceRef ?? "-"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </section>
-
-            {/* Recommendation */}
-            <section className="section grid-2">
-              <div className="card">
-                <div className="card-h">Recommendation</div>
-                <div className="card-b">
-                  <div className="big">
-                    {scoreModel.score >= 85
-                      ? "Proceed to trade documentation."
-                      : scoreModel.score >= 70
-                        ? "Proceed with targeted reviews."
-                        : "Do not proceed until remediation."}
-                  </div>
-                  <div className="muted" style={{ marginTop: 8 }}>
-                    This snapshot is explainable and traceable: each score movement is linked to
-                    covenant posture and checklist evidence references.
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-h">Next actions</div>
-                <div className="card-b">
-                  <ul className="list">
-                    <li>Review covenant breaches / headroom in Servicing.</li>
-                    <li>Validate reporting deliverables and obtain missing evidence packs.</li>
-                    <li>Confirm “No open Events of Default” against latest notices.</li>
-                    <li>Attach ESG KPI evidence where applicable.</li>
-                  </ul>
-
-                  <div className="muted" style={{ marginTop: 8 }}>
-                    Report ID:{" "}
-                    <span className="mono">
-                      tds-{loanId}-{generatedAt.slice(0, 10)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <footer className="report-footer">
-              LEXA Ledger • Audit-ready output • Generated from structured loan data and servicing
-              posture
-            </footer>
-          </>
-        )}
+        </div>
       </div>
-    </div>
-  );
-}
 
-function KV({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <div className="kv">
-      <div className="kv-k">{k}</div>
-      <div className="kv-v">{v}</div>
+      <h3>Key blockers</h3>
+      {blockers.length === 0 ? (
+        <p>✅ No blockers. This loan is trade-ready.</p>
+      ) : (
+        <div style={{ marginBottom: 12 }}>
+          {blockers.slice(0, 8).map((i) => (
+            <div key={i.id} style={{ padding: 10, border: "1px solid #eee", borderRadius: 10, marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ fontWeight: 700 }}>{i.title}</div>
+                <div style={{ fontWeight: 800 }}>{i.status}</div>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                {i.category} · {i.code} · {i.weight} pts
+              </div>
+              {i.evidenceRef ? (
+                <div style={{ fontSize: 12, opacity: 0.8 }}>Evidence: {i.evidenceRef}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h3>Next actions</h3>
+      {nextActions.length ? (
+        <ul>
+          {nextActions.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>—</p>
+      )}
+
+      <h3>Checklist (by category)</h3>
+      {grouped.map((g) => (
+        <div key={g.category} style={{ marginBottom: 16 }}>
+          <h4 style={{ marginBottom: 8 }}>{g.category}</h4>
+          {g.items.map((i) => (
+            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f2f2f2" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{i.title}</div>
+                <div style={{ fontSize: 12, opacity: 0.75 }}>{i.code} · {i.weight} pts</div>
+              </div>
+              <div style={{ fontWeight: 800 }}>{i.status}</div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

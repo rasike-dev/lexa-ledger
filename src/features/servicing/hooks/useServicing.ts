@@ -1,9 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchServicing } from "../services/mockServicingApi";
+import { useUIStore } from "@/app/store/uiStore";
+import { fetchServicingSummary } from "../services/servicingApi";
+import { fetchServicing as fetchServicingMock } from "../services/mockServicingApi";
 import type { CovenantComputed, CovenantStatus, ServicingPayload } from "../types";
 
+export function useServicing(loanId: string | null) {
+  const demoMode = useUIStore((s) => s.demoMode);
+
+  return useQuery({
+    queryKey: ["servicingSummary", loanId, demoMode],
+    queryFn: async () => {
+      if (!loanId) throw new Error("No loanId");
+      return fetchServicingSummary(loanId);
+    },
+    enabled: !!loanId,
+  });
+}
+
+// Legacy exports for LoanTrading.tsx and TradingReport.tsx
+// TODO: Update those pages to use the new API structure
 function computeStatus(operator: "<=" | ">=", threshold: number, actual: number): CovenantStatus {
-  // Define "watch" band as 5% buffer near threshold
   const buffer = Math.abs(threshold) * 0.05;
 
   if (operator === "<=") {
@@ -13,7 +29,6 @@ function computeStatus(operator: "<=" | ">=", threshold: number, actual: number)
     return "BREACH_RISK";
   }
 
-  // >=
   if (actual >= threshold) {
     return actual <= threshold + buffer ? "WATCH" : "OK";
   }
@@ -21,7 +36,6 @@ function computeStatus(operator: "<=" | ">=", threshold: number, actual: number)
 }
 
 function computeHeadroom(operator: "<=" | ">=", threshold: number, actual: number): number {
-  // positive headroom = good
   return operator === "<=" ? threshold - actual : actual - threshold;
 }
 
@@ -35,16 +49,5 @@ export function enrichCovenants(
     const headroom = computeHeadroom(c.operator, c.threshold, actual);
 
     return { ...c, actual, status, headroom };
-  });
-}
-
-export function useServicing(loanId: string | null) {
-  return useQuery({
-    queryKey: ["servicing", loanId],
-    queryFn: async () => {
-      if (!loanId) throw new Error("No loanId");
-      return fetchServicing(loanId);
-    },
-    enabled: !!loanId,
   });
 }

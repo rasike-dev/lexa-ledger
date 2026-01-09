@@ -9,7 +9,7 @@ import { LoanDocuments } from "../features/loans/pages/LoanDocuments";
 import { LoanServicing } from "../features/loans/pages/LoanServicing";
 import { LoanTrading } from "../features/loans/pages/LoanTrading";
 import { LoanESG } from "../features/loans/pages/LoanESG";
-import { TradingReport } from "../features/trading/pages/TradingReport";
+import TradingReport from "../features/trading/pages/TradingReport";
 
 export const appRouter = createBrowserRouter([
   {

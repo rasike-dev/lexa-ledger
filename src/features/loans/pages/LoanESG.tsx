@@ -2,367 +2,55 @@ import React from "react";
 import { useParams, NavLink } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
 import { loanPaths } from "../../../app/routes/paths";
-
-import { useEsg } from "../../esg/hooks/useEsg";
-import { computeEsgScorecard, computeKpiStatus } from "../../esg/services/mockEsgApi";
+import { useEsgSummary } from "../../esg/hooks/useEsgSummary";
+import { useUploadEsgEvidence } from "../../esg/hooks/useUploadEsgEvidence";
+import { useVerifyEsgEvidence } from "../../esg/hooks/useVerifyEsgEvidence";
+import type { EsgKpi } from "../../esg/services/httpEsgApi";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
-function pillForOverall(overall: "GREEN" | "AMBER" | "RED") {
-  if (overall === "GREEN") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)" };
-  if (overall === "AMBER") return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)" };
-  return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)" };
+function verificationBadge(status: string) {
+  switch (status) {
+    case "VERIFIED":
+      return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "✅ VERIFIED" };
+    case "NEEDS_REVIEW":
+      return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)", label: "⚠️ NEEDS REVIEW" };
+    case "REJECTED":
+      return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)", label: "❌ REJECTED" };
+    default: // PENDING
+      return { bg: "rgba(148,163,184,0.12)", fg: "rgb(148,163,184)", label: "🟡 PENDING" };
+  }
 }
 
-function pillForKpi(status: "ON_TRACK" | "AT_RISK" | "OFF_TRACK") {
-  if (status === "ON_TRACK")
-    return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "On track" };
-  if (status === "AT_RISK")
-    return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)", label: "At risk" };
-  return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)", label: "Off track" };
+// Determine if "higher is better" for a KPI type
+function isHigherBetter(kpiType: string): boolean {
+  const higherIsBetter = [
+    "RENEWABLE_ENERGY_PERCENT",
+    "WASTE_RECYCLED_PERCENT",
+    "DIVERSITY_PERCENT",
+  ];
+  return higherIsBetter.includes(kpiType);
 }
 
-export function LoanESG() {
-  const { loanId } = useParams();
-  const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
-
-  React.useEffect(() => {
-    if (loanId) setActiveLoanId(loanId);
-  }, [loanId, setActiveLoanId]);
-
-  const q = useEsg(loanId ?? null);
-
-  const scorecard = React.useMemo(() => (q.data ? computeEsgScorecard(q.data) : null), [q.data]);
-
-  const verifiedForKpi = React.useMemo(() => {
-    if (!q.data) return new Set<string>();
-    const set = new Set<string>();
-    q.data.evidence
-      .filter((e) => e.status === "VERIFIED")
-      .forEach((e) => e.appliesToKpiIds.forEach((id) => set.add(id)));
-    return set;
-  }, [q.data]);
-
-  useScrollToHash([q.data]);
-
-  return (
-    <div>
-      <h1 style={{ margin: "0 0 8px 0" }}>ESG • KPIs & Evidence</h1>
-      <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-        Capture, verify, and share ESG performance transparently across parties.
-      </p>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <NavLinkChip
-          to={loanPaths.documents(loanId ?? "demo-loan-001")}
-          label="View ESG clauses in Documents"
-        />
-        <NavLinkChip
-          to={loanPaths.trading(loanId ?? "demo-loan-001")}
-          label="Back to Trading diligence"
-        />
-      </div>
-
-      {q.isLoading ? (
-        <div style={{ color: "rgb(var(--muted))" }}>Loading ESG data…</div>
-      ) : q.isError ? (
-        <div style={{ color: "rgb(var(--danger))" }}>Failed to load ESG data.</div>
-      ) : (
-        <>
-          {/* Scorecard */}
-          {scorecard && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
-              <Card
-                title="Overall ESG posture"
-                value={
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                      background: pillForOverall(scorecard.overall).bg,
-                      color: pillForOverall(scorecard.overall).fg,
-                      fontWeight: 900,
-                    }}
-                  >
-                    {scorecard.overall}
-                  </span>
-                }
-              />
-              <Card
-                title="Evidence coverage"
-                value={
-                  <span style={{ fontWeight: 900 }}>{scorecard.verifiedCoveragePct}% verified</span>
-                }
-              />
-              <Card
-                title="KPI status"
-                value={
-                  <div style={{ fontSize: 12, color: "rgb(var(--muted))" }}>
-                    <b>{scorecard.kpisOnTrack}</b> on track • <b>{scorecard.kpisAtRisk}</b> at risk
-                    • <b>{scorecard.kpisOffTrack}</b> off track
-                  </div>
-                }
-              />
-            </div>
-          )}
-
-          {/* KPI Table */}
-          <div
-            style={{
-              border: "1px solid rgb(var(--border))",
-              borderRadius: 12,
-              background: "rgb(var(--card))",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              id="kpis"
-              style={{
-                padding: 12,
-                borderBottom: "1px solid rgb(var(--border))",
-                scrollMarginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 900 }}>ESG KPI register</div>
-                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                  As of: {new Date(q.data.asOf).toLocaleString()}
-                </div>
-              </div>
-
-              <CopyLinkButton
-                href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#kpis`)}
-                label="Copy link to ESG KPIs"
-              />
-            </div>
-
-            <table
-              style={{ width: "100%", borderCollapse: "collapse", background: "rgb(var(--bg))" }}
-            >
-              <thead style={{ background: "rgb(var(--card))" }}>
-                <tr>
-                  <Th>KPI</Th>
-                  <Th>Period</Th>
-                  <Th>Target</Th>
-                  <Th>Actual</Th>
-                  <Th>Status</Th>
-                  <Th>Evidence</Th>
-                  <Th>Clause</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {q.data.kpis.map((k, idx) => {
-                  const st = computeKpiStatus(k.direction, k.target, k.actual);
-                  const pill = pillForKpi(st);
-                  const hasVerified = verifiedForKpi.has(k.id);
-
-                  return (
-                    <tr
-                      key={k.id}
-                      style={{ borderTop: idx ? "1px solid rgb(var(--border))" : "none" }}
-                    >
-                      <Td>
-                        <div style={{ fontWeight: 900 }}>{k.name}</div>
-                        <div style={{ fontSize: 12, color: "rgb(var(--muted))" }}>
-                          Direction:{" "}
-                          {k.direction === "LOWER_IS_BETTER"
-                            ? "Lower is better"
-                            : "Higher is better"}
-                        </div>
-                      </Td>
-                      <Td>{k.period}</Td>
-                      <Td className="mono">
-                        {k.target} {k.unit}
-                      </Td>
-                      <Td className="mono">
-                        {k.actual} {k.unit}
-                      </Td>
-                      <Td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "4px 8px",
-                            borderRadius: 999,
-                            background: pill.bg,
-                            color: pill.fg,
-                            fontWeight: 900,
-                            fontSize: 12,
-                          }}
-                        >
-                          {pill.label}
-                        </span>
-                      </Td>
-                      <Td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "4px 8px",
-                            borderRadius: 999,
-                            border: "1px solid rgb(var(--border))",
-                            background: hasVerified
-                              ? "rgba(16,185,129,0.10)"
-                              : "rgba(245,158,11,0.10)",
-                            color: hasVerified ? "rgb(16,185,129)" : "rgb(245,158,11)",
-                            fontWeight: 900,
-                            fontSize: 12,
-                          }}
-                        >
-                          {hasVerified ? "Verified" : "Needs verification"}
-                        </span>
-                      </Td>
-                      <Td className="mono">{k.linkedClauseRef ?? "-"}</Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Evidence Registry */}
-          <div
-            style={{
-              marginTop: 12,
-              border: "1px solid rgb(var(--border))",
-              borderRadius: 12,
-              background: "rgb(var(--card))",
-            }}
-          >
-            <div
-              id="evidence"
-              style={{
-                padding: 12,
-                borderBottom: "1px solid rgb(var(--border))",
-                scrollMarginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 900 }}>Evidence registry</div>
-                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                  Verified/unverified evidence mapped to KPIs (audit-ready).
-                </div>
-              </div>
-
-              <CopyLinkButton
-                href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`)}
-                label="Copy link to ESG Evidence"
-              />
-            </div>
-
-            <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-              {q.data.evidence.map((e) => {
-                const verified = e.status === "VERIFIED";
-                return (
-                  <div
-                    key={e.id}
-                    style={{
-                      padding: 12,
-                      borderRadius: 12,
-                      border: "1px solid rgb(var(--border))",
-                      background: "rgb(var(--bg))",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                      <div>
-                        <div style={{ fontWeight: 900 }}>{e.title}</div>
-                        <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                          Type: {e.type} • Provider: {e.provider}
-                        </div>
-                      </div>
-
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background: verified ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
-                          color: verified ? "rgb(16,185,129)" : "rgb(245,158,11)",
-                          fontWeight: 900,
-                          fontSize: 12,
-                          height: "fit-content",
-                        }}
-                      >
-                        {verified ? "VERIFIED" : "UNVERIFIED"}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 8 }}>
-                      Applies to: <span className="mono">{e.appliesToKpiIds.join(", ")}</span>
-                    </div>
-
-                    <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-                      Source: <span className="mono">{e.sourceRef ?? "-"}</span>
-                    </div>
-
-                    {verified && (
-                      <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-                        Verified by: <b>{e.verifiedBy || "—"}</b>
-                        {" • "}
-                        At: <b>{e.verifiedAt ? new Date(e.verifiedAt).toLocaleString() : "—"}</b>
-                      </div>
-                    )}
-
-                    {!verified && (
-                      <div style={{ marginTop: 10 }}>
-                        <button
-                          disabled
-                          title="Demo: verification workflow in Phase 3"
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "1px solid rgb(var(--border))",
-                            background: "rgb(var(--card))",
-                            fontWeight: 900,
-                            opacity: 0.6,
-                            cursor: "not-allowed",
-                          }}
-                        >
-                          Request verification (next)
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, fontSize: 12, color: "rgb(var(--muted))" }}>
-            Demo note: In production, evidence verification would integrate with third-party
-            assurance providers and cryptographic attestations (DLT optional), producing audit
-            trails consumable across counterparties.
-          </div>
-
-          <GuidedDemoCTA
-            step={4}
-            totalSteps={4}
-            title="Guided Demo • Finish"
-            body="Return to Overview to reset and replay the workflow, or explore modules freely."
-            to={`${loanPaths.overview(loanId ?? "demo-loan-001")}#top`}
-            buttonLabel="Back to Overview"
-            subtle
-          />
-        </>
-      )}
-    </div>
-  );
+function calculateGap(kpi: EsgKpi) {
+  if (kpi.current == null || kpi.target == null) return null;
+  
+  const gap = kpi.current - kpi.target;
+  const gapPercent = kpi.target !== 0 ? (gap / kpi.target) * 100 : 0;
+  
+  // Determine if on target based on direction
+  let isOnTarget: boolean;
+  if (isHigherBetter(kpi.type)) {
+    // For "higher is better" KPIs: current should be >= target (within tolerance)
+    isOnTarget = gap >= -5; // Allow 5% below target
+  } else {
+    // For "lower is better" KPIs: current should be <= target (within tolerance)
+    isOnTarget = gap <= 5; // Allow 5% above target
+  }
+  
+  return { gap, gapPercent, isOnTarget };
 }
 
 function NavLinkChip({ to, label }: { to: string; label: string }) {
@@ -370,17 +58,17 @@ function NavLinkChip({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       style={{
-        textDecoration: "none",
-        color: "rgb(var(--primary))",
-        fontWeight: 900,
-        fontSize: 12,
-        padding: "6px 10px",
+        padding: "6px 12px",
         borderRadius: 999,
         border: "1px solid rgb(var(--border))",
-        background: "rgb(var(--bg))",
+        background: "rgb(var(--card))",
+        textDecoration: "none",
+        fontSize: 13,
+        fontWeight: 600,
+        color: "rgb(var(--foreground))",
       }}
     >
-      {label} →
+      {label}
     </NavLink>
   );
 }
@@ -395,26 +83,507 @@ function Card({ title, value }: { title: string; value: React.ReactNode }) {
         background: "rgb(var(--card))",
       }}
     >
-      <div style={{ fontSize: 12, color: "rgb(var(--muted))" }}>{title}</div>
-      <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>{value}</div>
+      <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontWeight: 900, fontSize: 20 }}>{value}</div>
     </div>
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th
-      style={{ textAlign: "left", fontSize: 12, color: "rgb(var(--muted))", padding: "10px 12px" }}
-    >
-      {children}
-    </th>
-  );
-}
+export function LoanESG() {
+  const { loanId } = useParams();
+  const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const demoMode = useUIStore((s) => s.demoMode);
 
-function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  const esgQuery = useEsgSummary(loanId ?? null);
+  const uploadMutation = useUploadEsgEvidence(loanId ?? null);
+  const verifyMutation = useVerifyEsgEvidence(loanId ?? null);
+
+  const [uploadTitle, setUploadTitle] = React.useState("");
+  const [uploadType, setUploadType] = React.useState("REPORT");
+  const [uploadKpiId, setUploadKpiId] = React.useState("");
+
+  React.useEffect(() => {
+    if (loanId) setActiveLoanId(loanId);
+  }, [loanId, setActiveLoanId]);
+
+  useScrollToHash([esgQuery.data]);
+
+  async function handleUpload(file: File) {
+    const title = uploadTitle.trim() || file.name;
+    await uploadMutation.mutateAsync({
+      title,
+      type: uploadType,
+      kpiId: uploadKpiId || undefined,
+      file,
+    });
+    // Reset form
+    setUploadTitle("");
+    setUploadKpiId("");
+  }
+
+  const kpis = esgQuery.data?.kpis ?? [];
+  const evidence = esgQuery.data?.evidence ?? [];
+
+  // Enhanced summary stats
+  const totalKpis = kpis.length;
+  const kpisOnTarget = kpis.filter((k: EsgKpi) => {
+    const gap = calculateGap(k);
+    return gap?.isOnTarget;
+  }).length;
+  const kpisOffTrack = kpis.filter((k: EsgKpi) => {
+    const gap = calculateGap(k);
+    return gap && !gap.isOnTarget;
+  }).length;
+  const kpisNoTarget = kpis.filter((k: EsgKpi) => {
+    return k.current == null || k.target == null;
+  }).length;
+
+  const verifiedEvidence = evidence.filter((e: any) => e.latestVerification?.status === "VERIFIED").length;
+  const needsReviewEvidence = evidence.filter((e: any) => e.latestVerification?.status === "NEEDS_REVIEW").length;
+  const pendingEvidence = evidence.filter((e: any) => 
+    !e.latestVerification || e.latestVerification?.status === "PENDING"
+  ).length;
+
   return (
-    <td style={{ padding: "10px 12px", fontSize: 13 }} className={className}>
-      {children}
-    </td>
+    <div>
+      <h1 style={{ margin: "0 0 8px 0" }}>ESG • Environmental, Social, Governance</h1>
+      <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
+        Track ESG KPIs, upload evidence, and maintain compliance transparency.
+      </p>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <NavLinkChip
+          to={loanPaths.documents(loanId ?? "demo-loan-001")}
+          label="View ESG clauses in Documents"
+        />
+        <NavLinkChip
+          to={loanPaths.trading(loanId ?? "demo-loan-001")}
+          label="Back to Trading diligence"
+        />
+      </div>
+
+      {esgQuery.isLoading ? (
+        <div style={{ color: "rgb(var(--muted))" }}>Loading ESG data…</div>
+      ) : esgQuery.isError ? (
+        <div style={{ color: "rgb(var(--danger))" }}>Failed to load ESG data.</div>
+      ) : (
+        <>
+          {/* Enhanced Mini Dashboard */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <Card title="Total KPIs" value={totalKpis} />
+            <Card 
+              title="✅ On Track" 
+              value={`${kpisOnTarget} KPIs`}
+            />
+            <Card 
+              title="⚠️ Off Track" 
+              value={`${kpisOffTrack} KPIs`}
+            />
+            <Card 
+              title="⚠️ No Target" 
+              value={`${kpisNoTarget} KPIs`}
+            />
+            <Card 
+              title="✅ Verified" 
+              value={`${verifiedEvidence} evidence`}
+            />
+            <Card 
+              title="⚠️ Needs Review" 
+              value={`${needsReviewEvidence} evidence`}
+            />
+            <Card 
+              title="🟡 Pending" 
+              value={`${pendingEvidence} evidence`}
+            />
+          </div>
+
+          {/* Upload Section */}
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--card))",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Upload Evidence</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                value={uploadTitle}
+                onChange={(e) => setUploadTitle(e.target.value)}
+                placeholder="Evidence title (optional)"
+                style={{
+                  flex: "1 1 200px",
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--background))",
+                  color: "rgb(var(--foreground))",
+                }}
+                disabled={demoMode}
+              />
+              <select
+                value={uploadType}
+                onChange={(e) => setUploadType(e.target.value)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--background))",
+                  color: "rgb(var(--foreground))",
+                }}
+                disabled={demoMode}
+              >
+                <option value="REPORT">Report</option>
+                <option value="CERTIFICATE">Certificate</option>
+                <option value="INVOICE">Invoice</option>
+                <option value="AUDIT">Audit</option>
+                <option value="POLICY">Policy</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <select
+                value={uploadKpiId}
+                onChange={(e) => setUploadKpiId(e.target.value)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--background))",
+                  color: "rgb(var(--foreground))",
+                }}
+                disabled={demoMode}
+              >
+                <option value="">Link to KPI (optional)</option>
+                {kpis.map((k: EsgKpi) => (
+                  <option key={k.id} value={k.id}>
+                    {k.title}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(file);
+                }}
+                disabled={demoMode || uploadMutation.isPending}
+                style={{ flex: "0 0 auto" }}
+              />
+              {uploadMutation.isPending && (
+                <span style={{ fontSize: 12, color: "rgb(var(--muted))" }}>Uploading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* KPIs Section */}
+          <div
+            id="kpis"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              fontWeight: 900,
+              marginBottom: 8,
+              scrollMarginTop: 12,
+            }}
+          >
+            <span>Key Performance Indicators</span>
+            <CopyLinkButton
+              href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#kpis`)}
+              label="Copy link to KPIs"
+            />
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            {kpis.map((kpi: EsgKpi) => {
+              const gap = calculateGap(kpi);
+              return (
+                <div
+                  key={kpi.id}
+                  style={{
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--card))",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 8 }}>{kpi.title}</div>
+                  <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginBottom: 8 }}>
+                    Type: {kpi.type}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "rgb(var(--muted))" }}>Target</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {kpi.target != null ? `${kpi.target} ${kpi.unit || ""}` : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "rgb(var(--muted))" }}>Current</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {kpi.current != null ? `${kpi.current} ${kpi.unit || ""}` : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {gap && (
+                    <div
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        background: gap.isOnTarget
+                          ? "rgba(16,185,129,0.12)"
+                          : "rgba(245,158,11,0.12)",
+                        color: gap.isOnTarget ? "rgb(16,185,129)" : "rgb(245,158,11)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textAlign: "center",
+                      }}
+                    >
+                      {gap.isOnTarget ? "✅ On Target" : "⚠️ Off Target"} (
+                      {gap.gapPercent > 0 ? "+" : ""}
+                      {gap.gapPercent.toFixed(1)}%)
+                    </div>
+                  )}
+
+                  {kpi.asOfDate && (
+                    <div style={{ fontSize: 11, color: "rgb(var(--muted))", marginTop: 8 }}>
+                      As of: {new Date(kpi.asOfDate).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Evidence Section */}
+          <div
+            id="evidence"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              fontWeight: 900,
+              marginBottom: 8,
+              scrollMarginTop: 12,
+            }}
+          >
+            <span>Evidence & Verification</span>
+            <CopyLinkButton
+              href={buildDeepLink(`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`)}
+              label="Copy link to Evidence"
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+            {evidence.map((ev: any) => {
+              const verification = ev.latestVerification;
+              const badge = verification ? verificationBadge(verification.status) : verificationBadge("PENDING");
+
+              return (
+                <div
+                  key={ev.id}
+                  style={{
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--card))",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "start",
+                      gap: 10,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 900 }}>{ev.title}</div>
+                      <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                        Type: {ev.type} • File: {ev.fileName}
+                      </div>
+                      <div style={{ fontSize: 11, color: "rgb(var(--muted))", marginTop: 2 }}>
+                        Uploaded: {new Date(ev.uploadedAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 8px",
+                        borderRadius: 999,
+                        background: badge.bg,
+                        color: badge.fg,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  {/* Confidence Bar */}
+                  {verification?.confidence != null && (
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+                        <span style={{ color: "rgb(var(--muted))" }}>Confidence</span>
+                        <span style={{ fontWeight: 600 }}>{Math.round(verification.confidence * 100)}%</span>
+                      </div>
+                      <div
+                        style={{
+                          height: 6,
+                          borderRadius: 3,
+                          background: "rgb(var(--border))",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${verification.confidence * 100}%`,
+                            height: "100%",
+                            background: 
+                              verification.confidence >= 0.8 ? "rgb(16,185,129)" :
+                              verification.confidence >= 0.6 ? "rgb(245,158,11)" :
+                              "rgb(220,38,38)",
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {verification?.notes && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 8,
+                        borderRadius: 8,
+                        background: "rgb(var(--background))",
+                        fontSize: 11,
+                        color: "rgb(var(--muted))",
+                      }}
+                    >
+                      ℹ️ {verification.notes}
+                    </div>
+                  )}
+
+                  {verification && (
+                    <div style={{ fontSize: 11, color: "rgb(var(--muted))", marginTop: 8 }}>
+                      Verified: {new Date(verification.checkedAt).toLocaleString()}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button
+                      onClick={() => verifyMutation.mutate(ev.id)}
+                      disabled={demoMode || verifyMutation.isPending}
+                      style={{
+                        flex: 1,
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: "1px solid rgb(var(--border))",
+                        background: demoMode ? "rgb(var(--muted))" : "rgb(var(--card))",
+                        color: demoMode ? "white" : "rgb(var(--foreground))",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: demoMode ? "not-allowed" : "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!demoMode) {
+                          e.currentTarget.style.background = "rgb(var(--primary))";
+                          e.currentTarget.style.color = "white";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!demoMode) {
+                          e.currentTarget.style.background = "rgb(var(--card))";
+                          e.currentTarget.style.color = "rgb(var(--foreground))";
+                        }
+                      }}
+                    >
+                      {verifyMutation.isPending ? "🔄 Verifying..." : "🔄 Verify Now"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(ev.fileKey);
+                      }}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: "1px solid rgb(var(--border))",
+                        background: "rgb(var(--card))",
+                        color: "rgb(var(--foreground))",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgb(var(--primary))";
+                        e.currentTarget.style.color = "white";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgb(var(--card))";
+                        e.currentTarget.style.color = "rgb(var(--foreground))";
+                      }}
+                      title={`Copy file key: ${ev.fileKey}`}
+                    >
+                      📋 Copy Key
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {evidence.length === 0 && (
+              <div
+                style={{
+                  padding: 20,
+                  textAlign: "center",
+                  color: "rgb(var(--muted))",
+                  border: "1px dashed rgb(var(--border))",
+                  borderRadius: 12,
+                }}
+              >
+                No evidence uploaded yet. Use the form above to upload ESG evidence.
+              </div>
+            )}
+          </div>
+
+          <GuidedDemoCTA
+            step={4}
+            totalSteps={4}
+            title="Guided Demo • Complete"
+            body="You've explored the full LMA-EDGE system: Origination → Documents → Servicing → Trading → ESG. Toggle demoMode to see live backend integration."
+            to={loanPaths.overview(loanId ?? "demo-loan-001")}
+            buttonLabel="Back to Overview"
+          />
+        </>
+      )}
+    </div>
   );
 }

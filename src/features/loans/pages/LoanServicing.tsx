@@ -1,18 +1,20 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
-import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
+import { useServicing } from "../../servicing/hooks/useServicing";
+import { useSetServicingScenario } from "../../servicing/hooks/useSetServicingScenario";
+import { useRecomputeServicing } from "../../servicing/hooks/useRecomputeServicing";
 import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { loanPaths } from "../../../app/routes/paths";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 
-function statusStyle(status: "OK" | "WATCH" | "BREACH_RISK") {
-  if (status === "OK") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "OK" };
-  if (status === "WATCH")
-    return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)", label: "Watch" };
-  return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)", label: "Breach risk" };
+function statusStyle(status: "PASS" | "WARN" | "FAIL") {
+  if (status === "PASS") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "PASS" };
+  if (status === "WARN")
+    return { bg: "rgba(245,158,11,0.12)", fg: "rgb(245,158,11)", label: "WARN" };
+  return { bg: "rgba(220,38,38,0.12)", fg: "rgb(220,38,38)", label: "FAIL" };
 }
 
 function fmt(n: number) {
@@ -22,24 +24,20 @@ function fmt(n: number) {
 export function LoanServicing() {
   const { loanId } = useParams();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
+  const demoMode = useUIStore((s) => s.demoMode);
 
-  const scenario = useUIStore((s) =>
-    loanId ? (s.servicingScenarioByLoan[loanId] ?? "base") : "base"
-  );
-  const toggleScenario = useUIStore((s) => s.toggleServicingScenario);
+  const servicing = useServicing(loanId ?? null);
+  const setScenario = useSetServicingScenario(loanId ?? null);
+  const recompute = useRecomputeServicing(loanId ?? null);
+
+  const currentScenario = servicing.data?.scenario ?? "BASE";
+  const lastTestedAt = servicing.data?.lastTestedAt;
 
   React.useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
-  const q = useServicing(loanId ?? null);
-
-  const computed = React.useMemo(() => {
-    if (!q.data) return [];
-    return enrichCovenants(q.data, scenario);
-  }, [q.data, scenario]);
-
-  useScrollToHash([q.data, scenario]);
+  useScrollToHash([servicing.data]);
 
   return (
     <div>
@@ -48,25 +46,80 @@ export function LoanServicing() {
         Monitor covenant health and obligations. Use simulation to preview risk under stress.
       </p>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: "rgb(var(--muted))" }}>Scenario</div>
-        <button
-          onClick={() => loanId && toggleScenario(loanId)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid rgb(var(--border))",
-            background: "rgb(var(--card))",
-            fontWeight: 800,
-          }}
-        >
-          {scenario === "base" ? "Base actuals" : "Stress scenario"} (toggle)
-        </button>
+      {/* Scenario Info & Controls */}
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          alignItems: "center",
+          padding: 12,
+          marginBottom: 16,
+          borderRadius: 12,
+          border: "1px solid rgb(var(--border))",
+          background: "rgb(var(--card))",
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "rgb(var(--muted))" }}>Scenario:</span>
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 800,
+              background: currentScenario === "BASE" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+              color: currentScenario === "BASE" ? "rgb(16,185,129)" : "rgb(245,158,11)",
+            }}
+          >
+            {currentScenario}
+          </span>
+        </div>
+
+        <div style={{ fontSize: 14, color: "rgb(var(--muted))" }}>
+          <span style={{ fontWeight: 600 }}>Last tested:</span>{" "}
+          {lastTestedAt ? new Date(lastTestedAt).toLocaleString() : "—"}
+        </div>
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button
+            onClick={() => recompute.mutate(undefined)}
+            disabled={recompute.isPending || demoMode}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--background))",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: recompute.isPending || demoMode ? "not-allowed" : "pointer",
+              opacity: recompute.isPending ? 0.6 : 1,
+            }}
+          >
+            {recompute.isPending ? "Recomputing..." : "⟳ Recompute Now"}
+          </button>
+
+          <button
+            onClick={() => setScenario.mutate(currentScenario === "BASE" ? "STRESS" : "BASE")}
+            disabled={setScenario.isPending || demoMode}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--card))",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: setScenario.isPending || demoMode ? "not-allowed" : "pointer",
+              opacity: setScenario.isPending ? 0.6 : 1,
+            }}
+          >
+            Toggle to {currentScenario === "BASE" ? "STRESS" : "BASE"}
+          </button>
+        </div>
       </div>
 
-      {q.isLoading ? (
+      {servicing.isLoading ? (
         <div style={{ color: "rgb(var(--muted))" }}>Loading servicing data…</div>
-      ) : q.isError ? (
+      ) : servicing.isError ? (
         <div style={{ color: "rgb(var(--danger))" }}>Failed to load servicing data.</div>
       ) : (
         <>
@@ -95,12 +148,13 @@ export function LoanServicing() {
             <div
               style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
             >
-              {computed.map((c) => {
+              {servicing.data.covenants.map((c) => {
                 const s = statusStyle(c.status);
+                const headroom = c.value - c.threshold;
 
                 return (
                   <div
-                    key={c.id}
+                    key={c.covenantId}
                     style={{
                       padding: 12,
                       borderRadius: 12,
@@ -117,9 +171,9 @@ export function LoanServicing() {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 900 }}>{c.name}</div>
+                        <div style={{ fontWeight: 900 }}>{c.title}</div>
                         <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                          Test: {c.testFrequency}
+                          Code: {c.code}
                         </div>
                       </div>
 
@@ -148,21 +202,26 @@ export function LoanServicing() {
                     >
                       <KpiMini
                         title="Threshold"
-                        value={`${c.operator} ${fmt(c.threshold)} ${c.unit}`}
+                        value={`${fmt(c.threshold)} ${c.unit ?? ""}`}
                       />
-                      <KpiMini title="Actual" value={`${fmt(c.actual)} ${c.unit}`} />
-                      <KpiMini title="Headroom" value={`${fmt(c.headroom)} ${c.unit}`} />
+                      <KpiMini title="Actual" value={`${fmt(c.value)} ${c.unit ?? ""}`} />
+                      <KpiMini title="Headroom" value={`${fmt(headroom)} ${c.unit ?? ""}`} />
                       <KpiMini
                         title="Interpretation"
                         value={
-                          c.status === "OK"
+                          c.status === "PASS"
                             ? "Within limits"
-                            : c.status === "WATCH"
+                            : c.status === "WARN"
                               ? "Near threshold"
                               : "Outside limits"
                         }
                       />
                     </div>
+                    {c.notes && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: "rgb(var(--muted))" }}>
+                        {c.notes}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -214,27 +273,19 @@ export function LoanServicing() {
               </div>
 
               <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                {q.data.obligations
-                  .slice()
-                  .sort((a, b) => +new Date(a.dueDate) - +new Date(b.dueDate))
-                  .slice(0, 6)
-                  .map((o) => (
-                    <div
-                      key={o.id}
-                      style={{
-                        padding: 10,
-                        borderRadius: 12,
-                        border: "1px solid rgb(var(--border))",
-                        background: "rgb(var(--bg))",
-                      }}
-                    >
-                      <div style={{ fontWeight: 800 }}>{o.title}</div>
-                      <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                        Due: {new Date(o.dueDate).toLocaleDateString()} • Owner: {o.owner} • Status:{" "}
-                        {o.status}
-                      </div>
-                    </div>
-                  ))}
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 12,
+                    border: "1px solid rgb(var(--border))",
+                    background: "rgb(var(--bg))",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>Obligations feature coming soon</div>
+                  <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                    API endpoint for obligations will be added in a future phase.
+                  </div>
+                </div>
               </div>
             </div>
 

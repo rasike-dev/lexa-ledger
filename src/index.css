@@ -228,6 +228,17 @@
   text-align: center;
 }
 
+/* Print-only visibility */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}
+
 /* PRINT MODE */
 @media print {
   :root {
@@ -308,4 +319,19 @@
 .anchor-flash {
   animation: anchorFlash 1.2s ease-out;
   border-radius: 12px;
+}
+
+@keyframes demoPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+}
+
+.demo-pulse {
+  animation: demoPulse 2s ease-in-out infinite;
 }

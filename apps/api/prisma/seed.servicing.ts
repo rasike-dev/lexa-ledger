@@ -30,6 +30,8 @@ async function main() {
         description: "Minimum DSCR to be maintained quarterly.",
         threshold: 1.25,
         unit: "x",
+        metric: "DSCR",
+        operator: "GTE",
       },
     });
 
@@ -44,6 +46,8 @@ async function main() {
         description: "Minimum cash and cash equivalents.",
         threshold: 20000000,
         unit: "USD",
+        metric: "LIQUIDITY",
+        operator: "GTE",
       },
     });
 

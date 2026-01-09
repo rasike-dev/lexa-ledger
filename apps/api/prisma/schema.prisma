@@ -32,21 +32,80 @@ enum ScenarioMode {
   STRESS
 }
 
+enum CovenantMetric {
+  DSCR
+  LIQUIDITY
+  LEVERAGE
+  EBITDA
+  INTEREST_COVER
+}
+
+enum CovenantOperator {
+  GTE
+  LTE
+}
+
+enum TradingItemStatus {
+  OPEN
+  DONE
+  BLOCKED
+}
+
+enum ReadinessBand {
+  RED
+  AMBER
+  GREEN
+}
+
+enum ESGKpiType {
+  EMISSIONS_SCOPE_1
+  EMISSIONS_SCOPE_2
+  EMISSIONS_SCOPE_3
+  RENEWABLE_ENERGY_PERCENT
+  ENERGY_INTENSITY
+  WATER_USAGE
+  WASTE_RECYCLED_PERCENT
+  SAFETY_TRIR
+  DIVERSITY_PERCENT
+  OTHER
+}
+
+enum ESGEvidenceType {
+  REPORT
+  CERTIFICATE
+  INVOICE
+  AUDIT
+  POLICY
+  OTHER
+}
+
+enum ESGVerificationStatus {
+  PENDING
+  VERIFIED
+  NEEDS_REVIEW
+  REJECTED
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships         Membership[]
-  loans               Loan[]
-  auditEvents         AuditEvent[]
-  documents           Document[]
-  documentVersions    DocumentVersion[]
-  clauses             Clause[]
-  loanScenarios       LoanScenario[]
-  covenants           Covenant[]
-  covenantTestResults CovenantTestResult[]
+  memberships               Membership[]
+  loans                     Loan[]
+  auditEvents               AuditEvent[]
+  documents                 Document[]
+  documentVersions          DocumentVersion[]
+  clauses                   Clause[]
+  loanScenarios             LoanScenario[]
+  covenants                 Covenant[]
+  covenantTestResults       CovenantTestResult[]
+  tradingChecklistItems     TradingChecklistItem[]
+  tradingReadinessSnapshots TradingReadinessSnapshot[]
+  esgKpis                   ESGKpi[]
+  esgEvidence               ESGEvidence[]
+  esgVerifications          ESGVerification[]
 }
 
 model User {
@@ -90,10 +149,15 @@ model Loan {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  documents           Document[]
-  scenario            LoanScenario?
-  covenants           Covenant[]
-  covenantTestResults CovenantTestResult[]
+  documents                 Document[]
+  scenario                  LoanScenario?
+  covenants                 Covenant[]
+  covenantTestResults       CovenantTestResult[]
+  tradingChecklistItems     TradingChecklistItem[]
+  tradingReadinessSnapshots TradingReadinessSnapshot[]
+  esgKpis                   ESGKpi[]
+  esgEvidence               ESGEvidence[]
+  esgVerifications          ESGVerification[]
 
   @@index([tenantId])
 }
@@ -194,6 +258,10 @@ model Covenant {
   unit        String? // e.g. "x", "%", "USD"
   createdAt   DateTime @default(now())
 
+  // NEW: explicit rule definition
+  metric   CovenantMetric
+  operator CovenantOperator @default(GTE)
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
@@ -223,4 +291,125 @@ model CovenantTestResult {
   @@index([loanId])
   @@index([covenantId])
   @@index([scenario])
+}
+
+model TradingChecklistItem {
+  id       String @id @default(cuid())
+  tenantId String
+  loanId   String
+
+  code        String // e.g. "DOCS.FACILITY_AGREEMENT"
+  title       String // e.g. "Facility Agreement uploaded"
+  description String?
+  category    String // e.g. "DOCUMENTS", "SERVICING", "ESG", "KYC"
+  weight      Int               @default(10) // points contributing to score
+  status      TradingItemStatus @default(OPEN)
+
+  evidenceRef String? // e.g. documentVersionId, clauseId, etc.
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, loanId, code])
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([status])
+  @@index([category])
+}
+
+model TradingReadinessSnapshot {
+  id       String @id @default(cuid())
+  tenantId String
+  loanId   String
+
+  score      Int // 0..100
+  band       ReadinessBand
+  reasons    Json? // explainability for UI (v1 can store counts/notes)
+  computedAt DateTime      @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([computedAt])
+}
+
+model ESGKpi {
+  id       String @id @default(cuid())
+  tenantId String
+  loanId   String
+
+  type     ESGKpiType
+  title    String
+  unit     String? // "tCO2e", "%", "kWh", etc.
+  target   Float?
+  current  Float?
+  asOfDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  evidence ESGEvidence[]
+
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([type])
+}
+
+model ESGEvidence {
+  id       String  @id @default(cuid())
+  tenantId String
+  loanId   String
+  kpiId    String?
+
+  type        ESGEvidenceType @default(OTHER)
+  title       String
+  source      String? // "Borrower", "Auditor", "Utility Provider", etc.
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  fileKey     String // MinIO key
+  fileName    String
+  contentType String
+  checksum    String?
+
+  uploadedAt DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan    @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  kpi    ESGKpi? @relation(fields: [kpiId], references: [id], onDelete: SetNull)
+
+  verifications ESGVerification[]
+
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([kpiId])
+  @@index([uploadedAt])
+}
+
+model ESGVerification {
+  id         String @id @default(cuid())
+  tenantId   String
+  loanId     String
+  evidenceId String
+
+  status     ESGVerificationStatus @default(PENDING)
+  confidence Float? // 0..1
+  notes      String? // human/worker explanation
+  checkedAt  DateTime              @default(now())
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan     Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  evidence ESGEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([evidenceId])
+  @@index([status])
 }
