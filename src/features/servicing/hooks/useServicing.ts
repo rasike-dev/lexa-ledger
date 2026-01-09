@@ -1,4 +1,4 @@
-import { useQuery } from "@tantml:react-query";
+import { useQuery } from "@tanstack/react-query";
 import { fetchServicingSummary } from "../services/servicingApi";
 import type { CovenantComputed, CovenantStatus, ServicingPayload } from "../types";
 
