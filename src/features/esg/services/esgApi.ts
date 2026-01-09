@@ -1,22 +1,26 @@
-import { env } from "@/app/config/env";
+import { useUIStore } from "@/app/store/uiStore";
 import { fetchEsgSummaryHttp, createEsgKpiHttp, uploadEsgEvidenceHttp, requestEsgVerifyNowHttp } from "./httpEsgApi";
 import { fetchEsgSummary as fetchEsgSummaryMock } from "./mockEsgApi";
 
 export async function fetchEsgSummary(loanId: string) {
-  return env.apiMode === 'mock' ? fetchEsgSummaryMock(loanId) : fetchEsgSummaryHttp(loanId);
+  const { demoMode } = useUIStore.getState();
+  return demoMode ? fetchEsgSummaryMock(loanId) : fetchEsgSummaryHttp(loanId);
 }
 
 export async function createEsgKpi(loanId: string, body: any) {
-  if (env.apiMode === 'mock') return { id: "demo-kpi-created" };
+  const { demoMode } = useUIStore.getState();
+  if (demoMode) return { id: "demo-kpi-created" };
   return createEsgKpiHttp(loanId, body);
 }
 
 export async function uploadEsgEvidence(loanId: string, form: FormData) {
-  if (env.apiMode === 'mock') return { evidenceId: "demo-evidence", fileKey: "demo", status: "PENDING" as const };
+  const { demoMode } = useUIStore.getState();
+  if (demoMode) return { evidenceId: "demo-evidence", fileKey: "demo", status: "PENDING" as const };
   return uploadEsgEvidenceHttp(loanId, form);
 }
 
 export async function requestEsgVerifyNow(loanId: string, evidenceId: string) {
-  if (env.apiMode === 'mock') return { ok: true as const, evidenceId };
+  const { demoMode } = useUIStore.getState();
+  if (demoMode) return { ok: true as const, evidenceId };
   return requestEsgVerifyNowHttp(loanId, evidenceId);
 }

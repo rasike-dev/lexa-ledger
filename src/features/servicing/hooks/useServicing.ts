@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { useUIStore } from "@/app/store/uiStore";
 import { fetchServicingSummary } from "../services/servicingApi";
 import type { CovenantComputed, CovenantStatus, ServicingPayload } from "../types";
 
 export function useServicing(loanId: string | null) {
+  const demoMode = useUIStore((s) => s.demoMode);
   return useQuery({
-    queryKey: ["servicingSummary", loanId],
+    queryKey: ["servicingSummary", loanId, demoMode],
     queryFn: async () => {
       if (!loanId) throw new Error("No loanId");
       return fetchServicingSummary(loanId);

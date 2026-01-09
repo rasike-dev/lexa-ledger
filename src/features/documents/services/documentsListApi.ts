@@ -1,8 +1,9 @@
-import { env } from "@/app/config/env";
+import { useUIStore } from "@/app/store/uiStore";
 import { fetchLoanDocumentsHttp } from "./httpDocumentsListApi";
 import { fetchLoanDocumentsMock } from "./mockDocumentsListApi";
 
 export async function fetchLoanDocuments(loanId: string) {
-  return env.apiMode === 'mock' ? fetchLoanDocumentsMock(loanId) : fetchLoanDocumentsHttp(loanId);
+  const { demoMode } = useUIStore.getState();
+  return demoMode ? fetchLoanDocumentsMock(loanId) : fetchLoanDocumentsHttp(loanId);
 }
 

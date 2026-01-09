@@ -29,16 +29,19 @@ async function fetchServicingSummaryMock(loanId: string) {
 }
 
 export async function fetchServicingSummary(loanId: string) {
-  return env.apiMode === 'mock' ? fetchServicingSummaryMock(loanId) : fetchServicingSummaryHttp(loanId);
+  const { demoMode } = useUIStore.getState();
+  return demoMode ? fetchServicingSummaryMock(loanId) : fetchServicingSummaryHttp(loanId);
 }
 
 export async function setServicingScenario(loanId: string, scenario: "BASE" | "STRESS") {
-  if (env.apiMode === 'mock') return { loanId, scenario }; // no-op in mock
+  const { demoMode } = useUIStore.getState();
+  if (demoMode) return { loanId, scenario }; // no-op in mock
   return setServicingScenarioHttp(loanId, scenario);
 }
 
 export async function requestServicingRecompute(loanId: string, scenario?: "BASE" | "STRESS") {
-  if (env.apiMode === 'mock') return { ok: true, loanId, scenario: scenario ?? "BASE" } as const;
+  const { demoMode } = useUIStore.getState();
+  if (demoMode) return { ok: true, loanId, scenario: scenario ?? "BASE" } as const;
   return requestServicingRecomputeHttp(loanId, scenario);
 }
 

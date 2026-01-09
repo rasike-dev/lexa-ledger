@@ -1,4 +1,4 @@
-import { env } from "@/app/config/env";
+import { useUIStore } from "@/app/store/uiStore";
 import { ingestLoanHttp, type IngestLoanRequest } from "./httpOriginationApi";
 
 // For now, mock mode can keep existing behavior (if you have mock flow)
@@ -8,6 +8,7 @@ async function ingestLoanMock(_: IngestLoanRequest) {
 }
 
 export async function ingestLoan(body: IngestLoanRequest) {
-  return env.apiMode === 'mock' ? ingestLoanMock(body) : ingestLoanHttp(body);
+  const { demoMode } = useUIStore.getState();
+  return demoMode ? ingestLoanMock(body) : ingestLoanHttp(body);
 }
 
