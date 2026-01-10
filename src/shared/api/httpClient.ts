@@ -1,10 +1,12 @@
 // src/shared/api/httpClient.ts
 
 import { z } from 'zod'
+import { useAuthStore } from '@/app/store/authStore'
 
 /**
  * Week 2 OIDC: tenant + actor derived from JWT token.
- * Authorization: Bearer <token> will be attached by auth interceptor.
+ * Authorization: Bearer <token> attached automatically.
+ * No x-tenant-id header - tenant context derived from JWT.
  */
 const EnvSchema = z.object({
   VITE_API_BASE_URL: z.string().default('/api'),
@@ -69,8 +71,12 @@ function buildHeaders(extra?: Record<string, string>): Headers {
   // Request correlation id
   h.set('x-request-id', makeRequestId())
 
-  // Week 2: Authorization header will be added by auth interceptor
+  // Week 2: Authorization header from auth store
   // Tenant context derived from JWT token (no x-tenant-id header)
+  const token = useAuthStore.getState().accessToken
+  if (token) {
+    h.set('Authorization', `Bearer ${token}`)
+  }
 
   if (extra) {
     for (const [k, v] of Object.entries(extra)) h.set(k, v)

@@ -1,6 +1,8 @@
 import React from "react";
 import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
+import { useAuthStore } from "../../../app/store/authStore";
+import { Roles, hasAnyRole } from "../../../auth/roles";
 import { loanPaths } from "../../../app/routes/paths";
 
 import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
@@ -67,6 +69,12 @@ export function LoanTrading() {
   const navigate = useNavigate();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
+  const { roles } = useAuthStore();
+
+  const canRecompute = hasAnyRole(roles, [
+    Roles.TRADING_ANALYST,
+    Roles.TENANT_ADMIN,
+  ]);
 
   const scenario = useUIStore((s) =>
     loanId ? (s.servicingScenarioByLoan[loanId] ?? "base") : "base"
@@ -271,14 +279,20 @@ export function LoanTrading() {
             </span>
             <button
               onClick={() => recompute.mutate()}
-              disabled={recompute.isPending}
+              disabled={!canRecompute || recompute.isPending}
+              title={
+                !canRecompute
+                  ? "Requires Trading Analyst or Tenant Admin role"
+                  : undefined
+              }
               style={{
                 padding: "8px 12px",
                 borderRadius: 10,
                 border: "1px solid rgb(var(--border))",
-                background: "rgb(var(--bg))",
+                background: !canRecompute ? "rgb(var(--muted))" : "rgb(var(--bg))",
                 fontWeight: 900,
-                cursor: recompute.isPending ? "not-allowed" : "pointer",
+                cursor: !canRecompute || recompute.isPending ? "not-allowed" : "pointer",
+                opacity: !canRecompute ? 0.6 : 1,
                 display: "flex",
                 alignItems: "center",
                 gap: 6,

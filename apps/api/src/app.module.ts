@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
@@ -16,14 +16,17 @@ import { ServicingModule } from "./servicing/servicing.module";
 import { TradingModule } from "./trading/trading.module";
 import { EsgModule } from "./esg/esg.module";
 import { PortfolioModule } from "./portfolio/portfolio.module";
+import { AuditModule } from "./audit/audit.module";
+import { CorrelationIdMiddleware } from "./common/correlation-id.middleware";
 
 /**
  * Root application module.
  * 
- * Security Stack (execution order):
- * 1. JwtAuthGuard - Validates JWT and populates req.user
- * 2. TenantInterceptor - Sets AsyncLocalStorage context for tenant enforcement
- * 3. RolesGuard - Validates user roles against @Roles() decorator
+ * Request Pipeline (execution order):
+ * 1. CorrelationIdMiddleware - Assigns/propagates correlation ID for tracing
+ * 2. JwtAuthGuard - Validates JWT and populates req.user
+ * 3. TenantInterceptor - Sets AsyncLocalStorage context for tenant enforcement
+ * 4. RolesGuard - Validates user roles against @Roles() decorator
  */
 @Module({
   imports: [
@@ -32,6 +35,7 @@ import { PortfolioModule } from "./portfolio/portfolio.module";
     PrismaModule,
     StorageModule,
     QueueModule,
+    AuditModule,
     HealthModule,
     LoansModule,
     OriginationModule,
@@ -59,5 +63,10 @@ import { PortfolioModule } from "./portfolio/portfolio.module";
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply correlation ID middleware to all routes (runs before guards)
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
 

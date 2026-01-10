@@ -3,9 +3,10 @@ import { DocumentsController, DocumentVersionsController } from "./documents.con
 import { DocumentVersionsUploadController } from "./document-versions.controller";
 import { DocumentsService } from "./documents.service";
 import { TenantModule } from "../tenant/tenant.module";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
-  imports: [TenantModule],
+  imports: [TenantModule, AuditModule],
   controllers: [DocumentsController, DocumentVersionsController, DocumentVersionsUploadController],
   providers: [DocumentsService],
 })

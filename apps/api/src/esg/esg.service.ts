@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { QueueService } from "../queue/queue.service";
 import { ESGVerificationStatus } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
+import { AuditService } from "../audit/audit.service";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -13,6 +15,7 @@ export class EsgService {
     private readonly storage: StorageService,
     private readonly queue: QueueService,
     private readonly tenantContext: TenantContext,
+    private readonly auditService: AuditService,
   ) {}
 
   private sha256(buf: Buffer) {
@@ -74,8 +77,9 @@ export class EsgService {
   async createKpi(params: {
     loanId: string;
     body: { type: string; title: string; unit?: string; target?: number; current?: number; asOfDate?: string };
+    req: Request;
   }) {
-    const { loanId } = params;
+    const { loanId, req } = params;
 
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
@@ -96,12 +100,14 @@ export class EsgService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    await this.prisma.auditEvent.create({
-      data: {
-        type: "ESG_KPI_CREATED",
-        summary: `Created ESG KPI "${title}"`,
-        payload: { loanId, kpiId: kpi.id, type: kpi.type } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "ESG_KPI_CREATED",
+      summary: `Created ESG KPI "${title}" for loan ${loanId}`,
+      evidenceRef: kpi.id,
+      payload: { loanId, kpiId: kpi.id, type: kpi.type, title },
     });
 
     return { id: kpi.id };
@@ -113,8 +119,9 @@ export class EsgService {
     title: string;
     type?: string;
     file: Express.Multer.File;
+    req: Request;
   }) {
-    const { loanId, file } = params;
+    const { loanId, file, req } = params;
     if (!file) throw new BadRequestException("Missing file");
 
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
@@ -158,22 +165,38 @@ export class EsgService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    await this.prisma.auditEvent.create({
-      data: {
-        type: "ESG_EVIDENCE_UPLOADED",
-        summary: `Uploaded ESG evidence "${params.title}"`,
-        evidenceRef: evidence.id,
-        payload: { loanId, evidenceId: evidence.id, kpiId: params.kpiId ?? null, fileKey, checksum } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "ESG_EVIDENCE_UPLOADED",
+      summary: `Uploaded ESG evidence "${params.title}" for loan ${loanId}`,
+      evidenceRef: evidence.id,
+      payload: {
+        loanId,
+        evidenceId: evidence.id,
+        kpiId: params.kpiId ?? null,
+        fileKey,
+        fileName: file.originalname,
+        contentType: file.mimetype,
+        checksum,
+        fileSize: file.size,
+      },
     });
 
-    await this.queue.enqueueESGVerification({ tenantId: this.tenantContext.tenantId, loanId, evidenceId: evidence.id });
+    // Enqueue verification with correlation ID for tracing
+    await this.queue.enqueueESGVerification({
+      tenantId: this.tenantContext.tenantId,
+      loanId,
+      evidenceId: evidence.id,
+      correlationId: ctx.correlationId,
+    });
 
     return { evidenceId: evidence.id, fileKey, status: "PENDING" as const };
   }
 
-  async requestVerify(params: { loanId: string; evidenceId: string; actorName?: string }) {
-    const { loanId, evidenceId } = params;
+  async requestVerify(params: { loanId: string; evidenceId: string; req: Request }) {
+    const { loanId, evidenceId, req } = params;
 
     const evidence = await this.prisma.eSGEvidence.findFirst({ where: { id: evidenceId, loanId } });
     if (!evidence) throw new NotFoundException("Evidence not found");
@@ -187,16 +210,29 @@ export class EsgService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    await this.prisma.auditEvent.create({
-      data: {
-        type: "ESG_VERIFY_REQUESTED",
-        summary: `Manual ESG verification requested`,
-        evidenceRef: evidenceId,
-        payload: { loanId, evidenceId, fileKey: evidence.fileKey } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "ESG_VERIFY_REQUESTED",
+      summary: `Manual ESG verification requested for evidence "${evidence.title}"`,
+      evidenceRef: evidenceId,
+      payload: {
+        loanId,
+        evidenceId,
+        fileKey: evidence.fileKey,
+        title: evidence.title,
+        source: 'ui',
+      },
     });
 
-    await this.queue.enqueueESGVerification({ tenantId: this.tenantContext.tenantId, loanId, evidenceId });
+    // Enqueue verification with correlation ID for tracing
+    await this.queue.enqueueESGVerification({
+      tenantId: this.tenantContext.tenantId,
+      loanId,
+      evidenceId,
+      correlationId: ctx.correlationId,
+    });
 
     return { ok: true as const, evidenceId };
   }

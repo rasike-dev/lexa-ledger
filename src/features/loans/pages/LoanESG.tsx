@@ -1,6 +1,8 @@
 import React from "react";
 import { useParams, NavLink } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
+import { useAuthStore } from "../../../app/store/authStore";
+import { Roles, hasAnyRole } from "../../../auth/roles";
 import { loanPaths } from "../../../app/routes/paths";
 import { useEsgSummary } from "../../esg/hooks/useEsgSummary";
 import { useUploadEsgEvidence } from "../../esg/hooks/useUploadEsgEvidence";
@@ -93,6 +95,19 @@ export function LoanESG() {
   const { loanId } = useParams();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
+  const { roles } = useAuthStore();
+
+  const canVerifyESG = hasAnyRole(roles, [
+    Roles.ESG_ANALYST,
+    Roles.ESG_VERIFIER,
+    Roles.TENANT_ADMIN,
+  ]);
+
+  const canUploadEvidence = hasAnyRole(roles, [
+    Roles.ESG_ANALYST,
+    Roles.ESG_VERIFIER,
+    Roles.TENANT_ADMIN,
+  ]);
 
   const esgQuery = useEsgSummary(loanId ?? null);
   const uploadMutation = useUploadEsgEvidence(loanId ?? null);
@@ -213,6 +228,11 @@ export function LoanESG() {
               background: "rgb(var(--card))",
               marginBottom: 16,
             }}
+            title={
+              !canUploadEvidence
+                ? "Requires ESG Analyst, ESG Verifier, or Tenant Admin role"
+                : undefined
+            }
           >
             <div style={{ fontWeight: 900, marginBottom: 8 }}>Upload Evidence</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -229,7 +249,7 @@ export function LoanESG() {
                   background: "rgb(var(--background))",
                   color: "rgb(var(--foreground))",
                 }}
-                disabled={demoMode}
+                disabled={!canUploadEvidence || demoMode}
               />
               <select
                 value={uploadType}
@@ -241,7 +261,7 @@ export function LoanESG() {
                   background: "rgb(var(--background))",
                   color: "rgb(var(--foreground))",
                 }}
-                disabled={demoMode}
+                disabled={!canUploadEvidence || demoMode}
               >
                 <option value="REPORT">Report</option>
                 <option value="CERTIFICATE">Certificate</option>
@@ -260,7 +280,7 @@ export function LoanESG() {
                   background: "rgb(var(--background))",
                   color: "rgb(var(--foreground))",
                 }}
-                disabled={demoMode}
+                disabled={!canUploadEvidence || demoMode}
               >
                 <option value="">Link to KPI (optional)</option>
                 {kpis.map((k: EsgKpi) => (
@@ -275,7 +295,7 @@ export function LoanESG() {
                   const file = e.target.files?.[0];
                   if (file) handleUpload(file);
                 }}
-                disabled={demoMode || uploadMutation.isPending}
+                disabled={!canUploadEvidence || demoMode || uploadMutation.isPending}
                 style={{ flex: "0 0 auto" }}
               />
               {uploadMutation.isPending && (
@@ -499,27 +519,33 @@ export function LoanESG() {
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button
                       onClick={() => verifyMutation.mutate(ev.id)}
-                      disabled={demoMode || verifyMutation.isPending}
+                      disabled={!canVerifyESG || demoMode || verifyMutation.isPending}
+                      title={
+                        !canVerifyESG
+                          ? "Requires ESG Analyst, ESG Verifier, or Tenant Admin role"
+                          : undefined
+                      }
                       style={{
                         flex: 1,
                         padding: "6px 12px",
                         borderRadius: 8,
                         border: "1px solid rgb(var(--border))",
-                        background: demoMode ? "rgb(var(--muted))" : "rgb(var(--card))",
-                        color: demoMode ? "white" : "rgb(var(--foreground))",
+                        background: !canVerifyESG || demoMode ? "rgb(var(--muted))" : "rgb(var(--card))",
+                        color: !canVerifyESG || demoMode ? "white" : "rgb(var(--foreground))",
                         fontSize: 12,
                         fontWeight: 600,
-                        cursor: demoMode ? "not-allowed" : "pointer",
+                        cursor: !canVerifyESG || demoMode ? "not-allowed" : "pointer",
+                        opacity: !canVerifyESG ? 0.6 : 1,
                         transition: "all 0.2s",
                       }}
                       onMouseEnter={(e) => {
-                        if (!demoMode) {
+                        if (!demoMode && canVerifyESG) {
                           e.currentTarget.style.background = "rgb(var(--primary))";
                           e.currentTarget.style.color = "white";
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!demoMode) {
+                        if (!demoMode && canVerifyESG) {
                           e.currentTarget.style.background = "rgb(var(--card))";
                           e.currentTarget.style.color = "rgb(var(--foreground))";
                         }

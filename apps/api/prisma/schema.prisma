@@ -163,15 +163,33 @@ model Loan {
   @@index([tenantId])
 }
 
+enum ActorType {
+  USER
+  SERVICE
+}
+
 model AuditEvent {
-  id          String   @id @default(cuid())
-  tenantId    String
-  actorId     String?
-  type        String
-  summary     String
-  evidenceRef String?
-  payload     Json?
-  createdAt   DateTime @default(now())
+  id            String     @id @default(cuid())
+  tenantId      String
+  
+  // Actor Identity (compliance-grade)
+  actorId       String?    // FK to User table (null for SERVICE or deleted users)
+  actorType     ActorType? // USER or SERVICE (null for legacy events)
+  actorUserId   String?    // Denormalized user ID (preserved even if user deleted)
+  actorClientId String?    // Client ID for SERVICE actions (e.g., 'lexa-ledger-worker')
+  actorRoles    String[]   @default([]) // Role snapshot at time of action
+  
+  // Request Context (forensic traceability)
+  correlationId String?    // Request/job correlation ID for tracing
+  ip            String?    // Client IP address (web requests only)
+  userAgent     String?    // User agent string (web requests only)
+  
+  // Event Data
+  type          String
+  summary       String
+  evidenceRef   String?
+  payload       Json?
+  createdAt     DateTime   @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actor  User?  @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
@@ -179,6 +197,8 @@ model AuditEvent {
   @@unique([tenantId, id])
   @@index([tenantId])
   @@index([actorId])
+  @@index([actorType])
+  @@index([correlationId])
   @@index([createdAt])
 }
 

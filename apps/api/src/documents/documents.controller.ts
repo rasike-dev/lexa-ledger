@@ -1,19 +1,19 @@
 import {
   Controller,
   Get,
-  Headers,
   Param,
   Post,
+  Req,
   UploadedFile,
   UseInterceptors,
   Body,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Request } from "express";
 import { DocumentsService } from "./documents.service";
 import { UploadDocumentResponseDto } from "./dto/upload-document.dto";
 import { CreateDocumentRequestDto, CreateDocumentResponseDto } from "./dto/create-document.dto";
 import { DocumentType } from "@prisma/client";
-import { TenantContext } from "../tenant/tenant-context";
 import { Roles } from "../auth/roles.decorator";
 
 class UploadDocumentBody {
@@ -24,10 +24,7 @@ class UploadDocumentBody {
 
 @Controller("loans/:loanId/documents")
 export class DocumentsController {
-  constructor(
-    private readonly docs: DocumentsService,
-    private readonly tenantContext: TenantContext,
-  ) {}
+  constructor(private readonly docs: DocumentsService) {}
 
   @Get()
   async listLoanDocuments(
@@ -39,6 +36,7 @@ export class DocumentsController {
   @Roles('DOCUMENT_SPECIALIST', 'TENANT_ADMIN')
   @Post()
   async createDocument(
+    @Req() req: Request,
     @Param("loanId") loanId: string,
     @Body() body: CreateDocumentRequestDto,
   ): Promise<CreateDocumentResponseDto> {
@@ -46,6 +44,7 @@ export class DocumentsController {
       loanId,
       title: body.title,
       type: body.type,
+      req,
     });
   }
 
@@ -53,27 +52,24 @@ export class DocumentsController {
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
   async upload(
-    @Headers("x-actor") actor: string | undefined,
+    @Req() req: Request,
     @Param("loanId") loanId: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: UploadDocumentBody,
   ): Promise<UploadDocumentResponseDto> {
     return this.docs.uploadForLoan({
-      actorName: actor,
       loanId,
       type: body.type,
       title: body.title,
       file,
+      req,
     });
   }
 }
 
 @Controller("document-versions/:documentVersionId")
 export class DocumentVersionsController {
-  constructor(
-    private readonly docs: DocumentsService,
-    private readonly tenantContext: TenantContext,
-  ) {}
+  constructor(private readonly docs: DocumentsService) {}
 
   @Get("clauses")
   async getClauses(

@@ -1,15 +1,12 @@
-import { Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Controller, Get, Param, Post, Req } from "@nestjs/common";
+import { Request } from "express";
 import { TradingService } from "./trading.service";
 import { TradingRecomputeResponseDto, TradingSummaryResponseDto } from "./dto/trading.dto";
-import { TenantContext } from "../tenant/tenant-context";
 import { Roles } from "../auth/roles.decorator";
 
 @Controller("loans/:loanId/trading")
 export class TradingController {
-  constructor(
-    private readonly trading: TradingService,
-    private readonly tenantContext: TenantContext,
-  ) {}
+  constructor(private readonly trading: TradingService) {}
 
   @Get("summary")
   async summary(
@@ -21,9 +18,9 @@ export class TradingController {
   @Roles('TRADING_ANALYST', 'TENANT_ADMIN')
   @Post("recompute")
   async recompute(
-    @Headers("x-actor") actor: string | undefined,
+    @Req() req: Request,
     @Param("loanId") loanId: string,
   ): Promise<TradingRecomputeResponseDto> {
-    return this.trading.requestRecompute({ loanId, actorName: actor }) as any;
+    return this.trading.requestRecompute({ loanId, req }) as any;
   }
 }

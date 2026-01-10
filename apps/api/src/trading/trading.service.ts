@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import { ReadinessBand } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class TradingService {
@@ -10,6 +12,7 @@ export class TradingService {
     private readonly prisma: PrismaService,
     private readonly queue: QueueService,
     private readonly tenantContext: TenantContext,
+    private readonly auditService: AuditService,
   ) {}
 
   async getSummary(params: { loanId: string }) {
@@ -47,21 +50,30 @@ export class TradingService {
     };
   }
 
-  async requestRecompute(params: { loanId: string; actorName?: string }) {
-    const { loanId } = params;
+  async requestRecompute(params: { loanId: string; req: Request }) {
+    const { loanId, req } = params;
 
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
-    await this.prisma.auditEvent.create({
-      data: {
-        type: "TRADING_RECOMPUTE_REQUESTED",
-        summary: `Requested trading readiness recompute`,
-        payload: { loanId },
-      } as any, // tenantId injected by Prisma extension
+    // Extract full audit context from request (enterprise-grade)
+    const ctx = this.auditService.actorFromRequest(req);
+
+    // Record audit event with complete context
+    await this.auditService.record({
+      ...ctx,
+      type: "TRADING_RECOMPUTE_REQUESTED",
+      summary: `Requested trading readiness recompute for loan ${loanId}`,
+      evidenceRef: loanId,
+      payload: { loanId, source: 'api' },
     });
 
-    await this.queue.enqueueTradingRecompute({ tenantId: this.tenantContext.tenantId, loanId });
+    // Enqueue async job with correlation ID for tracing
+    await this.queue.enqueueTradingRecompute({ 
+      tenantId: this.tenantContext.tenantId, 
+      loanId,
+      correlationId: ctx.correlationId,
+    });
 
     return { ok: true as const, loanId };
   }

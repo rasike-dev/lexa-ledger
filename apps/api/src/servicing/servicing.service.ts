@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import { ScenarioMode } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class ServicingService {
@@ -10,6 +12,7 @@ export class ServicingService {
     private readonly prisma: PrismaService,
     private readonly queue: QueueService,
     private readonly tenantContext: TenantContext,
+    private readonly auditService: AuditService,
   ) {}
 
   private parseScenario(v: string): ScenarioMode {
@@ -71,48 +74,57 @@ export class ServicingService {
     };
   }
 
-  async setScenario(params: { loanId: string; scenario: string; actorName?: string }) {
-    const { loanId } = params;
+  async setScenario(params: { loanId: string; scenario: string; req: Request }) {
+    const { loanId, req } = params;
 
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
-    const scenario = this.parseScenario(params.scenario);
+    const scenarioEnum = this.parseScenario(params.scenario);
+    const scenarioStr = scenarioEnum === ScenarioMode.BASE ? "BASE" : "STRESS";
+
+    // Check if this is an update (existing scenario) to capture old value
+    const existing = await this.prisma.loanScenario.findUnique({
+      where: { loanId },
+    });
+    const oldScenario = existing?.mode === ScenarioMode.BASE ? "BASE" : "STRESS";
 
     await this.prisma.loanScenario.upsert({
       where: { loanId },
-      update: { mode: scenario },
-      create: { loanId, mode: scenario } as any, // tenantId injected by Prisma extension
+      update: { mode: scenarioEnum },
+      create: { loanId, mode: scenarioEnum } as any, // tenantId injected by Prisma extension
     });
 
-    const actor =
-      params.actorName
-        ? await this.prisma.user.findFirst({
-            where: { OR: [{ name: params.actorName }, { email: params.actorName }] },
-          })
-        : null;
-
-    await this.prisma.auditEvent.create({
-      data: {
-        actorId: actor?.id ?? null,
-        type: "SERVICING_SCENARIO_SET",
-        summary: `Servicing scenario set to ${scenario}`,
-        payload: { loanId, scenario },
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: existing ? "SCENARIO_UPDATED" : "SCENARIO_CREATED",
+      summary: existing
+        ? `Updated servicing scenario from ${oldScenario} to ${scenarioStr} for loan ${loanId}`
+        : `Created servicing scenario (${scenarioStr}) for loan ${loanId}`,
+      evidenceRef: loanId,
+      payload: {
+        loanId,
+        scenario: scenarioStr,
+        ...(existing ? { oldScenario, newScenario: scenarioStr } : {}),
+        reason: 'Scenario changed via UI', // Enterprise: capture "why" for compliance
+      },
     });
 
-    // Enqueue recompute job for this scenario
+    // Enqueue recompute job with correlation ID for tracing
     await this.queue.enqueueServicingRecompute({
       tenantId: this.tenantContext.tenantId,
       loanId,
-      scenario: scenario === ScenarioMode.BASE ? "BASE" : "STRESS",
+      scenario: scenarioStr,
+      correlationId: ctx.correlationId,
     });
 
-    return { loanId, scenario: scenario === ScenarioMode.BASE ? "BASE" : "STRESS" };
+    return { loanId, scenario: scenarioStr };
   }
 
-  async requestRecompute(params: { loanId: string; scenario?: "BASE" | "STRESS"; actorName?: string }) {
-    const { loanId } = params;
+  async requestRecompute(params: { loanId: string; scenario?: "BASE" | "STRESS"; req: Request }) {
+    const { loanId, req } = params;
 
     const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
@@ -121,31 +133,42 @@ export class ServicingService {
       where: { loanId },
     });
 
-    const scenario = params.scenario
+    const scenarioEnum = params.scenario
       ? this.parseScenario(params.scenario)
       : (scenarioRow?.mode ?? ScenarioMode.BASE);
 
-    const actor =
-      params.actorName
-        ? await this.prisma.user.findFirst({ where: { OR: [{ name: params.actorName }, { email: params.actorName }] } })
-        : null;
+    const scenarioStr = scenarioEnum === ScenarioMode.BASE ? "BASE" : "STRESS";
 
-    await this.prisma.auditEvent.create({
-      data: {
-        actorId: actor?.id ?? null,
-        type: "SERVICING_RECOMPUTE_REQUESTED",
-        summary: `Requested servicing recompute (${scenario})`,
-        payload: { loanId, scenario },
-      } as any, // tenantId injected by Prisma extension
+    // Get covenant count for audit metadata (compliance context)
+    const covenantCount = await this.prisma.covenant.count({
+      where: { loanId },
     });
 
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "SERVICING_RECOMPUTE_REQUESTED",
+      summary: `Requested servicing covenant recompute (${scenarioStr}) for loan ${loanId}`,
+      evidenceRef: loanId,
+      payload: {
+        loanId,
+        scenario: scenarioStr,
+        covenantCount,
+        source: 'ui',
+        reason: 'Manual recompute requested', // Enterprise: capture "why" for compliance
+      },
+    });
+
+    // Enqueue recompute job with correlation ID for tracing
     await this.queue.enqueueServicingRecompute({
       tenantId: this.tenantContext.tenantId,
       loanId,
-      scenario: scenario === ScenarioMode.BASE ? "BASE" : "STRESS",
+      scenario: scenarioStr,
+      correlationId: ctx.correlationId,
     });
 
-    return { ok: true, loanId, scenario: scenario === ScenarioMode.BASE ? "BASE" : "STRESS" };
+    return { ok: true, loanId, scenario: scenarioStr };
   }
 }
 

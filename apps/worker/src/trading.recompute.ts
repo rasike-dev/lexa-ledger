@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient, ReadinessBand, TradingItemStatus } from "@prisma/client";
+import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -148,6 +149,9 @@ export function startTradingRecomputeWorker() {
       await prisma.auditEvent.create({
         data: {
           tenantId,
+          actorId: null, // No user for SERVICE actions
+          actorType: SERVICE_ACTOR_TYPE,
+          actorClientId: SERVICE_CLIENT_ID,
           type: "TRADING_READINESS_COMPUTED",
           summary: `Trading readiness computed: ${score} (${band})`,
           payload: { loanId, score, band, snapshotId: snap.id, reasons },

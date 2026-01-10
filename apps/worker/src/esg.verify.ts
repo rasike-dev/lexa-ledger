@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient, ESGVerificationStatus } from "@prisma/client";
+import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -118,6 +119,9 @@ export function startEsgVerifyWorker(storage: Storage) {
       await prisma.auditEvent.create({
         data: {
           tenantId,
+          actorId: null, // No user for SERVICE actions
+          actorType: SERVICE_ACTOR_TYPE,
+          actorClientId: SERVICE_CLIENT_ID,
           type: "ESG_EVIDENCE_VERIFIED",
           summary: `ESG evidence verified: ${result.status} (${Math.round(result.confidence * 100)}%)`,
           evidenceRef: evidenceId,

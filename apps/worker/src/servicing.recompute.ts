@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient, ScenarioMode, CovenantStatus } from "@prisma/client";
+import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -66,6 +67,9 @@ export function startServicingRecomputeWorker() {
         await prisma.auditEvent.create({
           data: {
             tenantId,
+            actorId: null, // No user for SERVICE actions
+            actorType: SERVICE_ACTOR_TYPE,
+            actorClientId: SERVICE_CLIENT_ID,
             type: "COVENANT_TESTED",
             summary: `Tested covenant ${c.code} (${scenario}) => ${status}`,
             payload: { loanId, covenantId: c.id, code: c.code, scenario, value, threshold: c.threshold, status },

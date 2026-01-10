@@ -1,21 +1,20 @@
-import { Body, Controller, Headers, Post } from "@nestjs/common";
+import { Body, Controller, Post, Req } from "@nestjs/common";
+import { Request } from "express";
 import { OriginationService } from "./origination.service";
 import { IngestLoanRequestDto, IngestLoanResponseDto } from "./dto/ingest-loan.dto";
-import { TenantContext } from "../tenant/tenant-context";
+import { Roles } from "../auth/roles.decorator";
 
 @Controller("origination")
 export class OriginationController {
-  constructor(
-    private readonly originationService: OriginationService,
-    private readonly tenantContext: TenantContext,
-  ) {}
+  constructor(private readonly originationService: OriginationService) {}
 
+  @Roles('LOAN_OFFICER', 'TENANT_ADMIN')
   @Post("ingest")
   async ingest(
-    @Headers("x-actor") actor: string | undefined,
+    @Req() req: Request,
     @Body() body: IngestLoanRequestDto,
   ): Promise<IngestLoanResponseDto> {
-    return this.originationService.ingestLoan(actor, body);
+    return this.originationService.ingestLoan(req, body);
   }
 }
 

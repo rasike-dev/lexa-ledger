@@ -1,16 +1,17 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { IngestLoanRequestDto } from "./dto/ingest-loan.dto";
-import { TenantContext } from "../tenant/tenant-context";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class OriginationService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantContext: TenantContext,
+    private readonly auditService: AuditService,
   ) {}
 
-  async ingestLoan(actorName: string | undefined, dto: IngestLoanRequestDto) {
+  async ingestLoan(req: Request, dto: IngestLoanRequestDto) {
     // Minimal validation (Week 1). Week 2 we'll use class-validator globally.
     if (!dto.borrower?.trim()) throw new BadRequestException("borrower is required");
     if (!dto.agentBank?.trim()) throw new BadRequestException("agentBank is required");
@@ -20,14 +21,7 @@ export class OriginationService {
     if (!Number.isInteger(dto.marginBps) || dto.marginBps < 0)
       throw new BadRequestException("marginBps must be >= 0");
 
-    // Try to find a dev user by name/email (Week 1). If not found, actorId can be null.
-    const actor =
-      actorName
-        ? await this.prisma.user.findFirst({
-            where: { OR: [{ name: actorName }, { email: actorName }] },
-          })
-        : null;
-
+    // Create loan in transaction
     const result = await this.prisma.$transaction(async (tx) => {
       const loan = await tx.loan.create({
         data: {
@@ -41,19 +35,27 @@ export class OriginationService {
         } as any, // tenantId injected by Prisma extension
       });
 
-      await tx.auditEvent.create({
-        data: {
-          actorId: actor?.id ?? null,
-          type: "LOAN_INGESTED",
-          summary: `Loan ingested for borrower ${loan.borrower}`,
-          payload: { loanId: loan.id, source: "origination.ingest" },
-        } as any, // tenantId injected by Prisma extension
-      });
-
-      return { loanId: loan.id };
+      return { loanId: loan.id, borrower: loan.borrower };
     });
 
-    return result;
+    // Record audit event with enterprise-grade context (outside transaction for separation of concerns)
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "LOAN_INGESTED",
+      summary: `Ingested new loan for borrower ${result.borrower}`,
+      evidenceRef: result.loanId,
+      payload: {
+        loanId: result.loanId,
+        borrower: result.borrower,
+        currency: dto.currency.trim().toUpperCase(),
+        facilityAmount: dto.facilityAmount,
+        marginBps: dto.marginBps,
+        source: "origination.ingest",
+      },
+    });
+
+    return { loanId: result.loanId };
   }
 }
 

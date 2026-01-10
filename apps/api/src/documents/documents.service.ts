@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { QueueService } from "../queue/queue.service";
 import { DocumentType } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
+import { AuditService } from "../audit/audit.service";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -13,6 +15,7 @@ export class DocumentsService {
     private readonly storage: StorageService,
     private readonly queue: QueueService,
     private readonly tenantContext: TenantContext,
+    private readonly auditService: AuditService,
   ) {}
 
   private checksum(buf: Buffer) {
@@ -28,11 +31,11 @@ export class DocumentsService {
    * or separate IdempotencyKey table with TTL.
    */
   async uploadForLoan(params: {
-    actorName?: string;
     loanId: string;
     type?: DocumentType;
     title?: string;
     file: Express.Multer.File;
+    req: Request;
   }) {
     const { loanId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
@@ -76,37 +79,33 @@ export class DocumentsService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    // Resolve actor (Week 1)
-    const actor =
-      params.actorName
-        ? await this.prisma.user.findFirst({
-            where: { OR: [{ name: params.actorName }, { email: params.actorName }] } as any, // tenantId injected by Prisma extension
-          })
-        : null;
-
-    await this.prisma.auditEvent.create({
-      data: {
-        actorId: actor?.id ?? null,
-        type: "DOCUMENT_UPLOADED",
-        summary: `Uploaded new document container + v${version} for "${title}" (shortcut)`,
-        evidenceRef: docVersion.id,
-        payload: {
-          mode: "create+v1", // Distinguishes shortcut endpoint from proper versioning
-          loanId,
-          documentId: document.id,
-          documentVersionId: docVersion.id,
-          fileKey,
-          checksum,
-        } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(params.req);
+    await this.auditService.record({
+      ...ctx,
+      type: "DOCUMENT_UPLOADED",
+      summary: `Uploaded new document container + v${version} for "${title}" (shortcut create+v1)`,
+      evidenceRef: docVersion.id,
+      payload: {
+        mode: "create+v1", // Distinguishes shortcut endpoint from proper versioning
+        loanId,
+        documentId: document.id,
+        documentVersionId: docVersion.id,
+        fileKey,
+        fileName: file.originalname,
+        contentType: file.mimetype,
+        fileSize: file.size,
+        checksum,
+      },
     });
 
-    // Enqueue extraction job
+    // Enqueue extraction job with correlation ID for tracing
     await this.queue.enqueueDocumentExtraction({
       tenantId: this.tenantContext.tenantId,
       loanId,
       documentId: document.id,
       documentVersionId: docVersion.id,
+      correlationId: ctx.correlationId,
     });
 
     return {
@@ -183,8 +182,9 @@ export class DocumentsService {
     loanId: string;
     title: string;
     type?: DocumentType;
+    req: Request;
   }) {
-    const { loanId } = params;
+    const { loanId, req } = params;
     const title = params.title?.trim();
     if (!title) throw new BadRequestException("title is required");
 
@@ -199,12 +199,19 @@ export class DocumentsService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    await this.prisma.auditEvent.create({
-      data: {
-        type: "DOCUMENT_CREATED",
-        summary: `Created document container "${title}"`,
-        payload: { loanId, documentId: document.id } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(req);
+    await this.auditService.record({
+      ...ctx,
+      type: "DOCUMENT_CREATED",
+      summary: `Created document container "${title}" for loan ${loanId}`,
+      evidenceRef: document.id,
+      payload: {
+        loanId,
+        documentId: document.id,
+        type: params.type ?? DocumentType.OTHER,
+        title,
+      },
     });
 
     return { documentId: document.id };
@@ -219,9 +226,9 @@ export class DocumentsService {
    * before creating new version.
    */
   async uploadNewVersion(params: {
-    actorName?: string;
     documentId: string;
     file: Express.Multer.File;
+    req: Request;
   }) {
     const { documentId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
@@ -259,36 +266,33 @@ export class DocumentsService {
       } as any, // tenantId injected by Prisma extension
     });
 
-    const actor =
-      params.actorName
-        ? await this.prisma.user.findFirst({
-            where: { OR: [{ name: params.actorName }, { email: params.actorName }] } as any, // tenantId injected by Prisma extension
-          })
-        : null;
-
-    await this.prisma.auditEvent.create({
-      data: {
-        actorId: actor?.id ?? null,
-        type: "DOCUMENT_VERSION_UPLOADED",
-        summary: `Uploaded "${document.title}" v${version}`,
-        evidenceRef: docVersion.id,
-        payload: {
-          loanId: document.loanId,
-          documentId: document.id,
-          documentVersionId: docVersion.id,
-          version,
-          fileKey,
-          checksum,
-        } as any, // tenantId injected by Prisma extension
-      } as any, // tenantId injected by Prisma extension
+    // Record audit event with enterprise-grade context
+    const ctx = this.auditService.actorFromRequest(params.req);
+    await this.auditService.record({
+      ...ctx,
+      type: "DOCUMENT_VERSION_UPLOADED",
+      summary: `Uploaded "${document.title}" v${version}`,
+      evidenceRef: docVersion.id,
+      payload: {
+        loanId: document.loanId,
+        documentId: document.id,
+        documentVersionId: docVersion.id,
+        version,
+        fileKey,
+        fileName: file.originalname,
+        contentType: file.mimetype,
+        fileSize: file.size,
+        checksum,
+      },
     });
 
-    // enqueue extraction for this version
+    // Enqueue extraction for this version with correlation ID for tracing
     await this.queue.enqueueDocumentExtraction({
       tenantId: this.tenantContext.tenantId,
       loanId: document.loanId,
       documentId: document.id,
       documentVersionId: docVersion.id,
+      correlationId: ctx.correlationId,
     });
 
     return {

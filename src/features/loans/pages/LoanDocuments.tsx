@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../../../app/store/uiStore";
+import { useAuthStore } from "../../../app/store/authStore";
+import { Roles, hasAnyRole } from "../../../auth/roles";
 import { useLoanDocuments } from "../../documents/hooks/useLoanDocuments";
 import { useClauses } from "../../documents/hooks/useClauses";
 import { createDocumentContainerHttp, uploadDocumentVersionHttp } from "../../documents/services/httpDocumentsWriteApi";
@@ -26,8 +28,14 @@ export function LoanDocuments() {
   const { loanId } = useParams();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
+  const { roles } = useAuthStore();
   const qc = useQueryClient();
   const docsQuery = useLoanDocuments(loanId ?? null);
+
+  const canUploadDocs = hasAnyRole(roles, [
+    Roles.DOCUMENT_SPECIALIST,
+    Roles.TENANT_ADMIN,
+  ]);
 
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -161,17 +169,22 @@ export function LoanDocuments() {
 
         <button
           onClick={onCreateDocument}
-          disabled={demoMode}
+          disabled={!canUploadDocs || demoMode}
+          title={
+            !canUploadDocs
+              ? "Requires Document Specialist or Tenant Admin role"
+              : undefined
+          }
           style={{
             padding: "6px 16px",
             borderRadius: 8,
-            border: demoMode ? "1px solid rgb(var(--muted))" : "1px solid rgb(var(--primary))",
-            background: demoMode ? "rgb(var(--muted))" : "rgb(var(--primary))",
+            border: !canUploadDocs || demoMode ? "1px solid rgb(var(--muted))" : "1px solid rgb(var(--primary))",
+            background: !canUploadDocs || demoMode ? "rgb(var(--muted))" : "rgb(var(--primary))",
             color: "white",
             fontSize: 14,
             fontWeight: 600,
-            cursor: demoMode ? "not-allowed" : "pointer",
-            opacity: demoMode ? 0.6 : 1,
+            cursor: !canUploadDocs || demoMode ? "not-allowed" : "pointer",
+            opacity: !canUploadDocs || demoMode ? 0.6 : 1,
             whiteSpace: "nowrap",
           }}
         >
@@ -179,22 +192,29 @@ export function LoanDocuments() {
         </button>
 
         <label
+          title={
+            !canUploadDocs
+              ? "Requires Document Specialist or Tenant Admin role"
+              : !selectedDocumentId
+              ? "Select a document first"
+              : undefined
+          }
           style={{
             padding: "6px 16px",
             borderRadius: 8,
             border: "1px solid rgb(var(--border))",
             background:
-              selectedDocumentId && !demoMode
+              selectedDocumentId && !demoMode && canUploadDocs
                 ? "rgb(var(--accent))"
                 : "rgb(var(--muted))",
             color:
-              selectedDocumentId && !demoMode
+              selectedDocumentId && !demoMode && canUploadDocs
                 ? "rgb(var(--accent-foreground))"
                 : "rgb(var(--muted-foreground))",
             fontSize: 14,
             fontWeight: 600,
-            cursor: selectedDocumentId && !demoMode ? "pointer" : "not-allowed",
-            opacity: selectedDocumentId && !demoMode ? 1 : 0.6,
+            cursor: selectedDocumentId && !demoMode && canUploadDocs ? "pointer" : "not-allowed",
+            opacity: selectedDocumentId && !demoMode && canUploadDocs ? 1 : 0.6,
             whiteSpace: "nowrap",
           }}
         >
@@ -205,7 +225,7 @@ export function LoanDocuments() {
               const f = e.target.files?.[0];
               if (f) onUploadVersion(f);
             }}
-            disabled={demoMode || !selectedDocumentId}
+            disabled={!canUploadDocs || demoMode || !selectedDocumentId}
             style={{ display: "none" }}
           />
         </label>

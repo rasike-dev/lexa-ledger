@@ -1,4 +1,6 @@
 import { PORTFOLIO, INGEST, loanPaths } from "./paths";
+import type { Role } from "../../auth/roles";
+import { Roles } from "../../auth/roles";
 
 export type UserRole = "agent" | "lender" | "borrower" | "buyer";
 
@@ -15,7 +17,7 @@ export type NavItem = {
   labelKey: string;
   // path can be computed when loanId is available
   path: string | ((loanId: string) => string);
-  rolesAllowed: UserRole[];
+  rolesAllowed: Role[];
 };
 
 export const navSections: NavSection[] = [
@@ -27,13 +29,13 @@ export const navSections: NavSection[] = [
         key: "portfolio",
         labelKey: "nav.portfolio",
         path: PORTFOLIO,
-        rolesAllowed: ["agent", "lender", "borrower", "buyer"],
+        rolesAllowed: [], // Accessible to all authenticated users
       },
       {
         key: "origination",
         labelKey: "nav.origination",
         path: INGEST,
-        rolesAllowed: ["agent", "lender"],
+        rolesAllowed: [Roles.LOAN_OFFICER, Roles.TENANT_ADMIN],
       },
     ],
   },
@@ -46,31 +48,37 @@ export const navSections: NavSection[] = [
         key: "loanOverview",
         labelKey: "nav.loan.overview",
         path: (loanId: string) => loanPaths.overview(loanId),
-        rolesAllowed: ["agent", "lender", "borrower", "buyer"],
+        rolesAllowed: [], // Accessible to all authenticated users
       },
       {
         key: "loanDocuments",
         labelKey: "nav.loan.documents",
         path: (loanId: string) => loanPaths.documents(loanId),
-        rolesAllowed: ["agent", "lender", "borrower", "buyer"],
+        rolesAllowed: [], // Accessible to all (action-gated internally)
       },
       {
         key: "loanServicing",
         labelKey: "nav.loan.servicing",
         path: (loanId: string) => loanPaths.servicing(loanId),
-        rolesAllowed: ["agent", "lender", "borrower"],
+        rolesAllowed: [], // Accessible to all (action-gated internally)
       },
       {
         key: "loanTrading",
         labelKey: "nav.loan.trading",
         path: (loanId: string) => loanPaths.trading(loanId),
-        rolesAllowed: ["agent", "lender", "buyer"],
+        rolesAllowed: [
+          Roles.TRADING_ANALYST,
+          Roles.TRADING_VIEWER,
+          Roles.RISK_OFFICER,
+          Roles.COMPLIANCE_AUDITOR,
+          Roles.TENANT_ADMIN,
+        ],
       },
       {
         key: "loanESG",
         labelKey: "nav.loan.esg",
         path: (loanId: string) => loanPaths.esg(loanId),
-        rolesAllowed: ["agent", "lender", "borrower", "buyer"],
+        rolesAllowed: [], // Accessible to all (action-gated internally)
       },
     ],
   },

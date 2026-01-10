@@ -1,6 +1,8 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
+import { useAuthStore } from "../../../app/store/authStore";
+import { Roles, hasAnyRole } from "../../../auth/roles";
 import { useServicing } from "../../servicing/hooks/useServicing";
 import { useSetServicingScenario } from "../../servicing/hooks/useSetServicingScenario";
 import { useRecomputeServicing } from "../../servicing/hooks/useRecomputeServicing";
@@ -25,6 +27,12 @@ export function LoanServicing() {
   const { loanId } = useParams();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
+  const { roles } = useAuthStore();
+
+  const canManageServicing = hasAnyRole(roles, [
+    Roles.SERVICING_MANAGER,
+    Roles.TENANT_ADMIN,
+  ]);
 
   const servicing = useServicing(loanId ?? null);
   const setScenario = useSetServicingScenario(loanId ?? null);
@@ -83,16 +91,21 @@ export function LoanServicing() {
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
             onClick={() => recompute.mutate(undefined)}
-            disabled={recompute.isPending || demoMode}
+            disabled={!canManageServicing || recompute.isPending || demoMode}
+            title={
+              !canManageServicing
+                ? "Requires Servicing Manager or Tenant Admin role"
+                : undefined
+            }
             style={{
               padding: "8px 14px",
               borderRadius: 8,
               border: "1px solid rgb(var(--border))",
-              background: "rgb(var(--background))",
+              background: !canManageServicing ? "rgb(var(--muted))" : "rgb(var(--background))",
               fontWeight: 600,
               fontSize: 13,
-              cursor: recompute.isPending || demoMode ? "not-allowed" : "pointer",
-              opacity: recompute.isPending ? 0.6 : 1,
+              cursor: !canManageServicing || recompute.isPending || demoMode ? "not-allowed" : "pointer",
+              opacity: !canManageServicing || recompute.isPending ? 0.6 : 1,
             }}
           >
             {recompute.isPending ? "Recomputing..." : "⟳ Recompute Now"}
@@ -100,16 +113,21 @@ export function LoanServicing() {
 
           <button
             onClick={() => setScenario.mutate(currentScenario === "BASE" ? "STRESS" : "BASE")}
-            disabled={setScenario.isPending || demoMode}
+            disabled={!canManageServicing || setScenario.isPending || demoMode}
+            title={
+              !canManageServicing
+                ? "Requires Servicing Manager or Tenant Admin role"
+                : undefined
+            }
             style={{
               padding: "8px 14px",
               borderRadius: 8,
               border: "1px solid rgb(var(--border))",
-              background: "rgb(var(--card))",
+              background: !canManageServicing ? "rgb(var(--muted))" : "rgb(var(--card))",
               fontWeight: 700,
               fontSize: 13,
-              cursor: setScenario.isPending || demoMode ? "not-allowed" : "pointer",
-              opacity: setScenario.isPending ? 0.6 : 1,
+              cursor: !canManageServicing || setScenario.isPending || demoMode ? "not-allowed" : "pointer",
+              opacity: !canManageServicing || setScenario.isPending ? 0.6 : 1,
             }}
           >
             Toggle to {currentScenario === "BASE" ? "STRESS" : "BASE"}

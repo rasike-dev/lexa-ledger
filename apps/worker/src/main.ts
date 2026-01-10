@@ -6,6 +6,7 @@ import { startServicingRecomputeWorker } from "./servicing.recompute";
 import { startTradingRecomputeWorker } from "./trading.recompute";
 import { startEsgVerifyWorker } from "./esg.verify";
 import { minioStorage } from "./storage/minioStorage";
+import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -75,6 +76,9 @@ new Worker<DocumentExtractJob>(
     await prisma.auditEvent.create({
       data: {
         tenantId,
+        actorId: null, // No user for SERVICE actions
+        actorType: SERVICE_ACTOR_TYPE,
+        actorClientId: SERVICE_CLIENT_ID,
         type: "CLAUSES_EXTRACTED",
         summary: `Extracted ${clauses.length} clauses`,
         evidenceRef: documentVersionId,

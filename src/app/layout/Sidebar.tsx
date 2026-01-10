@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { navSections, type NavItem } from "../routes/nav";
 import { useUIStore } from "../store/uiStore";
+import { useAuthStore } from "../store/authStore";
+import { hasAnyRole } from "../../auth/roles";
 import { PORTFOLIO } from "../routes/paths";
 
 function resolvePath(item: NavItem, loanId: string | null): string | null {
@@ -15,7 +17,7 @@ export function Sidebar() {
   const { t } = useTranslation("nav");
   const navigate = useNavigate();
 
-  const role = useUIStore((s) => s.role);
+  const { roles } = useAuthStore();
   const activeLoanId = useUIStore((s) => s.activeLoanId);
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const setRightDrawerOpen = useUIStore((s) => s.setRightDrawerOpen);
@@ -90,7 +92,12 @@ export function Sidebar() {
           if (section.requiresActiveLoan && !activeLoanId) return null;
 
           const visibleItems = section.items
-            .filter((n) => n.rolesAllowed.includes(role))
+            .filter((item) => {
+              // If no roles specified on the item, it's accessible to all
+              if (!item.rolesAllowed || item.rolesAllowed.length === 0) return true;
+              // Check if user has any of the required roles
+              return hasAnyRole(roles, item.rolesAllowed);
+            })
             .map((item) => ({ item, path: resolvePath(item, activeLoanId) }))
             .filter((x) => !!x.path) as Array<{ item: NavItem; path: string }>;
 
