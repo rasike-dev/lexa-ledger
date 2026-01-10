@@ -1,4 +1,9 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { AuthModule } from "./auth/auth.module";
+import { JwtAuthGuard } from "./auth/jwt-auth.guard";
+import { TenantModule } from "./tenant/tenant.module";
+import { TenantMiddleware } from "./tenant/tenant.middleware";
 import { PrismaModule } from "./prisma/prisma.module";
 import { StorageModule } from "./storage/storage.module";
 import { QueueModule } from "./queue/queue.module";
@@ -12,7 +17,31 @@ import { EsgModule } from "./esg/esg.module";
 import { PortfolioModule } from "./portfolio/portfolio.module";
 
 @Module({
-  imports: [PrismaModule, StorageModule, QueueModule, HealthModule, LoansModule, OriginationModule, DocumentsModule, ServicingModule, TradingModule, EsgModule, PortfolioModule],
+  imports: [
+    AuthModule,
+    TenantModule,
+    PrismaModule,
+    StorageModule,
+    QueueModule,
+    HealthModule,
+    LoansModule,
+    OriginationModule,
+    DocumentsModule,
+    ServicingModule,
+    TradingModule,
+    EsgModule,
+    PortfolioModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenantMiddleware).forRoutes('*');
+  }
+}
 

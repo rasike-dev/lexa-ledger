@@ -1,14 +1,17 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { IngestLoanRequestDto } from "./dto/ingest-loan.dto";
+import { TenantContext } from "../tenant/tenant-context";
 
 @Injectable()
 export class OriginationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContext,
+  ) {}
 
-  async ingestLoan(tenantId: string, actorName: string | undefined, dto: IngestLoanRequestDto) {
+  async ingestLoan(actorName: string | undefined, dto: IngestLoanRequestDto) {
     // Minimal validation (Week 1). Week 2 we'll use class-validator globally.
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id header");
     if (!dto.borrower?.trim()) throw new BadRequestException("borrower is required");
     if (!dto.agentBank?.trim()) throw new BadRequestException("agentBank is required");
     if (!dto.currency?.trim()) throw new BadRequestException("currency is required");
@@ -28,7 +31,6 @@ export class OriginationService {
     const result = await this.prisma.$transaction(async (tx) => {
       const loan = await tx.loan.create({
         data: {
-          tenantId,
           borrower: dto.borrower.trim(),
           agentBank: dto.agentBank.trim(),
           currency: dto.currency.trim().toUpperCase(),
@@ -41,7 +43,6 @@ export class OriginationService {
 
       await tx.auditEvent.create({
         data: {
-          tenantId,
           actorId: actor?.id ?? null,
           type: "LOAN_INGESTED",
           summary: `Loan ingested for borrower ${loan.borrower}`,

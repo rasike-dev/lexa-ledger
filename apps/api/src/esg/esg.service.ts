@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { QueueService } from "../queue/queue.service";
 import { ESGVerificationStatus } from "@prisma/client";
+import { TenantContext } from "../tenant/tenant-context";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -11,26 +12,26 @@ export class EsgService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly queue: QueueService,
+    private readonly tenantContext: TenantContext,
   ) {}
 
   private sha256(buf: Buffer) {
     return crypto.createHash("sha256").update(buf).digest("hex");
   }
 
-  async getSummary(params: { tenantId: string; loanId: string }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+  async getSummary(params: { loanId: string }) {
+    const { loanId } = params;
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const kpis = await this.prisma.eSGKpi.findMany({
-      where: { tenantId, loanId },
+      where: { loanId },
       orderBy: { updatedAt: "desc" },
     });
 
     const evidence = await this.prisma.eSGEvidence.findMany({
-      where: { tenantId, loanId },
+      where: { loanId },
       orderBy: { uploadedAt: "desc" },
       include: {
         verifications: { orderBy: { checkedAt: "desc" }, take: 1 },
@@ -71,14 +72,12 @@ export class EsgService {
   }
 
   async createKpi(params: {
-    tenantId: string;
     loanId: string;
     body: { type: string; title: string; unit?: string; target?: number; current?: number; asOfDate?: string };
   }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+    const { loanId } = params;
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const title = params.body.title?.trim();
@@ -87,7 +86,6 @@ export class EsgService {
 
     const kpi = await this.prisma.eSGKpi.create({
       data: {
-        tenantId,
         loanId,
         type: params.body.type as any,
         title,
@@ -100,7 +98,6 @@ export class EsgService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         type: "ESG_KPI_CREATED",
         summary: `Created ESG KPI "${title}"`,
         payload: { loanId, kpiId: kpi.id, type: kpi.type },
@@ -111,28 +108,26 @@ export class EsgService {
   }
 
   async uploadEvidence(params: {
-    tenantId: string;
     loanId: string;
     kpiId?: string;
     title: string;
     type?: string;
     file: Express.Multer.File;
   }) {
-    const { tenantId, loanId, file } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+    const { loanId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     if (params.kpiId) {
-      const kpi = await this.prisma.eSGKpi.findFirst({ where: { id: params.kpiId, tenantId, loanId } });
+      const kpi = await this.prisma.eSGKpi.findFirst({ where: { id: params.kpiId, loanId } });
       if (!kpi) throw new NotFoundException("KPI not found for this loan");
     }
 
     const checksum = this.sha256(file.buffer);
     const safeName = (file.originalname || "evidence").replace(/[^\w.\-]+/g, "_");
-    const fileKey = `tenants/${tenantId}/loans/${loanId}/esg/evidence/${Date.now()}_${safeName}`;
+    const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${loanId}/esg/evidence/${Date.now()}_${safeName}`;
 
     await this.storage.putObject({
       key: fileKey,
@@ -142,7 +137,6 @@ export class EsgService {
 
     const evidence = await this.prisma.eSGEvidence.create({
       data: {
-        tenantId,
         loanId,
         kpiId: params.kpiId ?? null,
         type: (params.type as any) ?? "OTHER",
@@ -157,7 +151,6 @@ export class EsgService {
     // Initial verification row = PENDING
     await this.prisma.eSGVerification.create({
       data: {
-        tenantId,
         loanId,
         evidenceId: evidence.id,
         status: ESGVerificationStatus.PENDING,
@@ -167,7 +160,6 @@ export class EsgService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         type: "ESG_EVIDENCE_UPLOADED",
         summary: `Uploaded ESG evidence "${params.title}"`,
         evidenceRef: evidence.id,
@@ -175,21 +167,19 @@ export class EsgService {
       },
     });
 
-    await this.queue.enqueueESGVerification({ tenantId, loanId, evidenceId: evidence.id });
+    await this.queue.enqueueESGVerification({ tenantId: this.tenantContext.tenantId, loanId, evidenceId: evidence.id });
 
     return { evidenceId: evidence.id, fileKey, status: "PENDING" as const };
   }
 
-  async requestVerify(params: { tenantId: string; loanId: string; evidenceId: string; actorName?: string }) {
-    const { tenantId, loanId, evidenceId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+  async requestVerify(params: { loanId: string; evidenceId: string; actorName?: string }) {
+    const { loanId, evidenceId } = params;
 
-    const evidence = await this.prisma.eSGEvidence.findFirst({ where: { id: evidenceId, tenantId, loanId } });
+    const evidence = await this.prisma.eSGEvidence.findFirst({ where: { id: evidenceId, loanId } });
     if (!evidence) throw new NotFoundException("Evidence not found");
 
     await this.prisma.eSGVerification.create({
       data: {
-        tenantId,
         loanId,
         evidenceId,
         status: "PENDING",
@@ -199,7 +189,6 @@ export class EsgService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         type: "ESG_VERIFY_REQUESTED",
         summary: `Manual ESG verification requested`,
         evidenceRef: evidenceId,
@@ -207,7 +196,7 @@ export class EsgService {
       },
     });
 
-    await this.queue.enqueueESGVerification({ tenantId, loanId, evidenceId });
+    await this.queue.enqueueESGVerification({ tenantId: this.tenantContext.tenantId, loanId, evidenceId });
 
     return { ok: true as const, evidenceId };
   }

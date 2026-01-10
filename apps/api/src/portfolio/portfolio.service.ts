@@ -1,10 +1,14 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { TenantContext } from "../tenant/tenant-context";
 import { ReadinessBand, ScenarioMode } from "@prisma/client";
 
 @Injectable()
 export class PortfolioService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenant: TenantContext,
+  ) {}
 
   private higherIsBetterKpiTypes = new Set<string>([
     "RENEWABLE_ENERGY_PERCENT",
@@ -20,12 +24,10 @@ export class PortfolioService {
     return current > target;
   }
 
-  async getPortfolioLoans(params: { tenantId: string }) {
-    const { tenantId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
-
+  async getPortfolioLoans() {
+    // Tenant filtering is automatic via Prisma middleware
     const loans = await this.prisma.loan.findMany({
-      where: { tenantId },
+      where: {},
       orderBy: { lastUpdatedAt: "desc" },
       select: {
         id: true,
@@ -42,11 +44,11 @@ export class PortfolioService {
     for (const loan of loans) {
       // ---------------- Documents ----------------
       const documentCount = await this.prisma.document.count({
-        where: { tenantId, loanId: loan.id },
+        where: { loanId: loan.id },
       });
 
       const facilityAgreement = await this.prisma.document.findFirst({
-        where: { tenantId, loanId: loan.id, type: "FACILITY_AGREEMENT" as any },
+        where: { loanId: loan.id, type: "FACILITY_AGREEMENT" as any },
         orderBy: { createdAt: "desc" },
         include: {
           versions: { orderBy: { version: "desc" }, take: 1 },
@@ -63,14 +65,14 @@ export class PortfolioService {
       const scenario = scenarioRow?.mode ?? ScenarioMode.BASE;
 
       const lastTest = await this.prisma.covenantTestResult.findFirst({
-        where: { tenantId, loanId: loan.id, scenario },
+        where: { loanId: loan.id, scenario },
         orderBy: { testedAt: "desc" },
         select: { testedAt: true },
       });
 
       // Count failing covenants (latest per covenant, current scenario)
       const recentResults = await this.prisma.covenantTestResult.findMany({
-        where: { tenantId, loanId: loan.id, scenario },
+        where: { loanId: loan.id, scenario },
         orderBy: { testedAt: "desc" },
         take: 200, // safe for demo; enough to cover latest-per-covenant
         select: { covenantId: true, status: true },
@@ -86,7 +88,7 @@ export class PortfolioService {
 
       // ---------------- Trading ----------------
       const trading = await this.prisma.tradingReadinessSnapshot.findFirst({
-        where: { tenantId, loanId: loan.id },
+        where: { loanId: loan.id },
         orderBy: { computedAt: "desc" },
         select: { score: true, band: true, computedAt: true },
       });
@@ -97,7 +99,7 @@ export class PortfolioService {
 
       // ---------------- ESG ----------------
       const kpis = await this.prisma.eSGKpi.findMany({
-        where: { tenantId, loanId: loan.id },
+        where: { loanId: loan.id },
         select: { type: true, target: true, current: true },
       });
 
@@ -110,7 +112,7 @@ export class PortfolioService {
 
       // Evidence pending count: latest verification per evidence (N+1, ok for demo)
       const evidence = await this.prisma.eSGEvidence.findMany({
-        where: { tenantId, loanId: loan.id },
+        where: { loanId: loan.id },
         select: { id: true },
         take: 50,
         orderBy: { uploadedAt: "desc" },
@@ -119,7 +121,7 @@ export class PortfolioService {
       let evidencePendingCount = 0;
       for (const e of evidence) {
         const latestV = await this.prisma.eSGVerification.findFirst({
-          where: { tenantId, loanId: loan.id, evidenceId: e.id },
+          where: { loanId: loan.id, evidenceId: e.id },
           orderBy: { checkedAt: "desc" },
           select: { status: true },
         });
@@ -162,12 +164,9 @@ export class PortfolioService {
     return { loans: result };
   }
 
-  async getPortfolioSummary(params: { tenantId: string }) {
-    const { tenantId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
-
+  async getPortfolioSummary() {
     // reuse loans rollups (simple + consistent)
-    const { loans } = await this.getPortfolioLoans({ tenantId });
+    const { loans } = await this.getPortfolioLoans();
 
     const totals = {
       loans: loans.length,

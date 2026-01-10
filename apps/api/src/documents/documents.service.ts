@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { QueueService } from "../queue/queue.service";
 import { DocumentType } from "@prisma/client";
+import { TenantContext } from "../tenant/tenant-context";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -11,6 +12,7 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly queue: QueueService,
+    private readonly tenantContext: TenantContext,
   ) {}
 
   private checksum(buf: Buffer) {
@@ -26,18 +28,16 @@ export class DocumentsService {
    * or separate IdempotencyKey table with TTL.
    */
   async uploadForLoan(params: {
-    tenantId: string;
     actorName?: string;
     loanId: string;
     type?: DocumentType;
     title?: string;
     file: Express.Multer.File;
   }) {
-    const { tenantId, loanId, file } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+    const { loanId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const docType = params.type ?? DocumentType.OTHER;
@@ -46,7 +46,7 @@ export class DocumentsService {
     // Create or reuse a Document container per (loanId, title, type) - simple v1
     // Later: explicit doc creation + versions; for now upload creates container if needed.
     const document = await this.prisma.document.create({
-      data: { tenantId, loanId, type: docType, title },
+      data: { loanId, type: docType, title },
     });
 
     // Determine next version number (v1: always 1 since new document created)
@@ -56,7 +56,7 @@ export class DocumentsService {
 
     // Storage key: tenant/loan/document/version/filename
     const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
-    const fileKey = `tenants/${tenantId}/loans/${loanId}/documents/${document.id}/v${version}/${safeName}`;
+    const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${loanId}/documents/${document.id}/v${version}/${safeName}`;
 
     // Upload to object storage
     await this.storage.putObject({
@@ -67,7 +67,6 @@ export class DocumentsService {
 
     const docVersion = await this.prisma.documentVersion.create({
       data: {
-        tenantId,
         documentId: document.id,
         version,
         fileKey,
@@ -87,7 +86,6 @@ export class DocumentsService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         actorId: actor?.id ?? null,
         type: "DOCUMENT_UPLOADED",
         summary: `Uploaded new document container + v${version} for "${title}" (shortcut)`,
@@ -105,7 +103,7 @@ export class DocumentsService {
 
     // Enqueue extraction job
     await this.queue.enqueueDocumentExtraction({
-      tenantId,
+      tenantId: this.tenantContext.tenantId,
       loanId,
       documentId: document.id,
       documentVersionId: docVersion.id,
@@ -118,9 +116,9 @@ export class DocumentsService {
     };
   }
 
-  async getClausesForVersion(tenantId: string, documentVersionId: string) {
+  async getClausesForVersion(documentVersionId: string) {
     const clauses = await this.prisma.clause.findMany({
-      where: { tenantId, documentVersionId },
+      where: { documentVersionId },
       orderBy: { clauseRef: "asc" },
     });
 
@@ -133,15 +131,14 @@ export class DocumentsService {
     }));
   }
 
-  async listLoanDocuments(params: { tenantId: string; loanId: string }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+  async listLoanDocuments(params: { loanId: string }) {
+    const { loanId } = params;
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const docs = await this.prisma.document.findMany({
-      where: { tenantId, loanId },
+      where: { loanId },
       orderBy: { createdAt: "desc" },
       include: {
         versions: {
@@ -183,22 +180,19 @@ export class DocumentsService {
   }
 
   async createDocumentContainer(params: {
-    tenantId: string;
     loanId: string;
     title: string;
     type?: DocumentType;
   }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+    const { loanId } = params;
     const title = params.title?.trim();
     if (!title) throw new BadRequestException("title is required");
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const document = await this.prisma.document.create({
       data: {
-        tenantId,
         loanId,
         title,
         type: params.type ?? DocumentType.OTHER,
@@ -207,7 +201,6 @@ export class DocumentsService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         type: "DOCUMENT_CREATED",
         summary: `Created document container "${title}"`,
         payload: { loanId, documentId: document.id },
@@ -226,22 +219,20 @@ export class DocumentsService {
    * before creating new version.
    */
   async uploadNewVersion(params: {
-    tenantId: string;
     actorName?: string;
     documentId: string;
     file: Express.Multer.File;
   }) {
-    const { tenantId, documentId, file } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+    const { documentId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
 
     const document = await this.prisma.document.findFirst({
-      where: { id: documentId, tenantId },
+      where: { id: documentId },
     });
     if (!document) throw new NotFoundException("Document not found");
 
     const latest = await this.prisma.documentVersion.findFirst({
-      where: { tenantId, documentId },
+      where: { documentId },
       orderBy: { version: "desc" },
     });
 
@@ -249,7 +240,7 @@ export class DocumentsService {
 
     const checksum = this.checksum(file.buffer);
     const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
-    const fileKey = `tenants/${tenantId}/loans/${document.loanId}/documents/${document.id}/v${version}/${safeName}`;
+    const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${document.loanId}/documents/${document.id}/v${version}/${safeName}`;
 
     await this.storage.putObject({
       key: fileKey,
@@ -259,7 +250,6 @@ export class DocumentsService {
 
     const docVersion = await this.prisma.documentVersion.create({
       data: {
-        tenantId,
         documentId: document.id,
         version,
         fileKey,
@@ -278,7 +268,6 @@ export class DocumentsService {
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         actorId: actor?.id ?? null,
         type: "DOCUMENT_VERSION_UPLOADED",
         summary: `Uploaded "${document.title}" v${version}`,
@@ -296,7 +285,7 @@ export class DocumentsService {
 
     // enqueue extraction for this version
     await this.queue.enqueueDocumentExtraction({
-      tenantId,
+      tenantId: this.tenantContext.tenantId,
       loanId: document.loanId,
       documentId: document.id,
       documentVersionId: docVersion.id,

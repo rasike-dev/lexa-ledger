@@ -2,28 +2,29 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import { ReadinessBand } from "@prisma/client";
+import { TenantContext } from "../tenant/tenant-context";
 
 @Injectable()
 export class TradingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queue: QueueService,
+    private readonly tenantContext: TenantContext,
   ) {}
 
-  async getSummary(params: { tenantId: string; loanId: string }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+  async getSummary(params: { loanId: string }) {
+    const { loanId } = params;
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     const checklist = await this.prisma.tradingChecklistItem.findMany({
-      where: { tenantId, loanId },
+      where: { loanId },
       orderBy: [{ category: "asc" }, { code: "asc" }],
     });
 
     const latest = await this.prisma.tradingReadinessSnapshot.findFirst({
-      where: { tenantId, loanId },
+      where: { loanId },
       orderBy: { computedAt: "desc" },
     });
 
@@ -46,23 +47,21 @@ export class TradingService {
     };
   }
 
-  async requestRecompute(params: { tenantId: string; loanId: string; actorName?: string }) {
-    const { tenantId, loanId } = params;
-    if (!tenantId) throw new BadRequestException("Missing x-tenant-id");
+  async requestRecompute(params: { loanId: string; actorName?: string }) {
+    const { loanId } = params;
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId, tenantId } });
+    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
     if (!loan) throw new NotFoundException("Loan not found");
 
     await this.prisma.auditEvent.create({
       data: {
-        tenantId,
         type: "TRADING_RECOMPUTE_REQUESTED",
         summary: `Requested trading readiness recompute`,
         payload: { loanId },
       },
     });
 
-    await this.queue.enqueueTradingRecompute({ tenantId, loanId });
+    await this.queue.enqueueTradingRecompute({ tenantId: this.tenantContext.tenantId, loanId });
 
     return { ok: true as const, loanId };
   }

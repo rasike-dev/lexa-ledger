@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param } from "@nestjs/common";
+import { Controller, Get, Param } from "@nestjs/common";
 import { LoansService } from "./loans.service";
 
 @Controller("loans")
@@ -6,24 +6,18 @@ export class LoansController {
   constructor(private readonly loansService: LoansService) {}
 
   @Get()
-  async listLoans(@Headers("x-tenant-id") tenantId: string) {
-    return this.loansService.listLoans(tenantId);
+  async listLoans() {
+    return this.loansService.listLoans();
   }
 
   @Get(":loanId/snapshot")
-  async getSnapshot(
-    @Headers("x-tenant-id") tenantId: string,
-    @Param("loanId") loanId: string,
-  ) {
-    return this.loansService.getLoanSnapshot(tenantId, loanId);
+  async getSnapshot(@Param("loanId") loanId: string) {
+    return this.loansService.getLoanSnapshot(loanId);
   }
 
   @Get(":loanId/audit")
-  async getAudit(
-    @Headers("x-tenant-id") tenantId: string,
-    @Param("loanId") loanId: string,
-  ) {
-    return this.loansService.getAuditTimeline(tenantId, loanId);
+  async getAudit(@Param("loanId") loanId: string) {
+    return this.loansService.getAuditTimeline(loanId);
   }
 }
 

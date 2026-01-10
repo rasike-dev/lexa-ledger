@@ -159,6 +159,7 @@ model Loan {
   esgEvidence               ESGEvidence[]
   esgVerifications          ESGVerification[]
 
+  @@unique([tenantId, id])
   @@index([tenantId])
 }
 
@@ -175,6 +176,7 @@ model AuditEvent {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actor  User?  @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([actorId])
   @@index([createdAt])
@@ -193,6 +195,7 @@ model Document {
 
   versions DocumentVersion[]
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
 }
@@ -213,6 +216,7 @@ model DocumentVersion {
 
   clauses Clause[]
 
+  @@unique([tenantId, id])
   @@unique([documentId, version])
   @@index([tenantId])
 }
@@ -230,6 +234,7 @@ model Clause {
   tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([documentVersionId])
 }
@@ -244,6 +249,7 @@ model LoanScenario {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
 }
 
@@ -267,6 +273,7 @@ model Covenant {
 
   results CovenantTestResult[]
 
+  @@unique([tenantId, id])
   @@unique([tenantId, loanId, code])
   @@index([tenantId])
   @@index([loanId])
@@ -287,6 +294,7 @@ model CovenantTestResult {
   loan     Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
   covenant Covenant @relation(fields: [covenantId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
   @@index([covenantId])
@@ -312,6 +320,7 @@ model TradingChecklistItem {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@unique([tenantId, loanId, code])
   @@index([tenantId])
   @@index([loanId])
@@ -332,6 +341,7 @@ model TradingReadinessSnapshot {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
   @@index([computedAt])
@@ -357,6 +367,7 @@ model ESGKpi {
 
   evidence ESGEvidence[]
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
   @@index([type])
@@ -387,6 +398,7 @@ model ESGEvidence {
 
   verifications ESGVerification[]
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
   @@index([kpiId])
@@ -408,6 +420,7 @@ model ESGVerification {
   loan     Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade)
   evidence ESGEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([loanId])
   @@index([evidenceId])

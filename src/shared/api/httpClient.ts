@@ -3,14 +3,12 @@
 import { z } from 'zod'
 
 /**
- * Week 1 (no OIDC): tenant + actor come from env.
- * Week 2 (OIDC): we will attach Authorization: Bearer <token> here.
+ * Week 2 OIDC: tenant + actor derived from JWT token.
+ * Authorization: Bearer <token> will be attached by auth interceptor.
  */
 const EnvSchema = z.object({
   VITE_API_BASE_URL: z.string().default('/api'),
   VITE_API_MODE: z.string().optional(), // "mock" | "live" (optional)
-  VITE_TENANT_ID: z.string().optional(),
-  VITE_ACTOR: z.string().optional(),
 })
 
 const env = EnvSchema.parse(import.meta.env)
@@ -68,12 +66,11 @@ function buildHeaders(extra?: Record<string, string>): Headers {
   h.set('accept', 'application/json')
   // only set content-type when we send JSON body (done in request() below)
 
-  // Week 1 tenant context headers (only if provided)
-  if (env.VITE_TENANT_ID) h.set('x-tenant-id', env.VITE_TENANT_ID)
-  if (env.VITE_ACTOR) h.set('x-actor', env.VITE_ACTOR)
-
   // Request correlation id
   h.set('x-request-id', makeRequestId())
+
+  // Week 2: Authorization header will be added by auth interceptor
+  // Tenant context derived from JWT token (no x-tenant-id header)
 
   if (extra) {
     for (const [k, v] of Object.entries(extra)) h.set(k, v)
