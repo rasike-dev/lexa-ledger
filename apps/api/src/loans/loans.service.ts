@@ -6,12 +6,11 @@ import { LoanSnapshotDto } from "./dto/loan-snapshot.dto";
 export class LoansService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getLoanSnapshot(tenantId: string, loanId: string): Promise<LoanSnapshotDto> {
+  async getLoanSnapshot(loanId: string): Promise<LoanSnapshotDto> {
     const loan = await this.prisma.loan.findFirst({
       where: {
         id: loanId,
-        tenantId,
-      },
+      }, // tenantId auto-injected by Prisma extension
     });
 
     if (!loan) {
@@ -32,15 +31,14 @@ export class LoansService {
     };
   }
 
-  async getAuditTimeline(tenantId: string, loanId: string) {
+  async getAuditTimeline(loanId: string) {
     const events = await this.prisma.auditEvent.findMany({
       where: {
-        tenantId,
         payload: {
           path: ["loanId"],
           equals: loanId,
         },
-      },
+      }, // tenantId auto-injected by Prisma extension
       orderBy: { createdAt: "desc" },
       include: {
         actor: true,
@@ -57,9 +55,9 @@ export class LoansService {
     }));
   }
 
-  async listLoans(tenantId: string) {
+  async listLoans() {
     const loans = await this.prisma.loan.findMany({
-      where: { tenantId },
+      where: {}, // tenantId auto-injected by Prisma extension
       orderBy: { lastUpdatedAt: "desc" },
     });
 

@@ -14,6 +14,7 @@ import { UploadDocumentResponseDto } from "./dto/upload-document.dto";
 import { CreateDocumentRequestDto, CreateDocumentResponseDto } from "./dto/create-document.dto";
 import { DocumentType } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
+import { Roles } from "../auth/roles.decorator";
 
 class UploadDocumentBody {
   // optional form fields
@@ -35,6 +36,7 @@ export class DocumentsController {
     return this.docs.listLoanDocuments({ loanId });
   }
 
+  @Roles('DOCUMENT_SPECIALIST', 'TENANT_ADMIN')
   @Post()
   async createDocument(
     @Param("loanId") loanId: string,
@@ -47,6 +49,7 @@ export class DocumentsController {
     });
   }
 
+  @Roles('DOCUMENT_SPECIALIST', 'TENANT_ADMIN')
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
   async upload(

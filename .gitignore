@@ -46,3 +46,14 @@ build
 
 # OS files
 Thumbs.db
+
+# Documentation (except README.md)
+*.md
+!README.md
+
+# Test scripts and artifacts
+test-*.sh
+*-validation.sh
+test-*.js
+test-*.ts
+*.js build artifacts

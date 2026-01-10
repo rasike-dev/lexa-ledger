@@ -38,7 +38,7 @@ export class OriginationService {
           marginBps: dto.marginBps,
           status: "Draft",
           lastUpdatedAt: new Date(),
-        },
+        } as any, // tenantId injected by Prisma extension
       });
 
       await tx.auditEvent.create({
@@ -47,7 +47,7 @@ export class OriginationService {
           type: "LOAN_INGESTED",
           summary: `Loan ingested for borrower ${loan.borrower}`,
           payload: { loanId: loan.id, source: "origination.ingest" },
-        },
+        } as any, // tenantId injected by Prisma extension
       });
 
       return { loanId: loan.id };

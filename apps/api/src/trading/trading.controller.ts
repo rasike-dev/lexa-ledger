@@ -2,6 +2,7 @@ import { Controller, Get, Headers, Param, Post } from "@nestjs/common";
 import { TradingService } from "./trading.service";
 import { TradingRecomputeResponseDto, TradingSummaryResponseDto } from "./dto/trading.dto";
 import { TenantContext } from "../tenant/tenant-context";
+import { Roles } from "../auth/roles.decorator";
 
 @Controller("loans/:loanId/trading")
 export class TradingController {
@@ -17,6 +18,7 @@ export class TradingController {
     return this.trading.getSummary({ loanId }) as any;
   }
 
+  @Roles('TRADING_ANALYST', 'TENANT_ADMIN')
   @Post("recompute")
   async recompute(
     @Headers("x-actor") actor: string | undefined,

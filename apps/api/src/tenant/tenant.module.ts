@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TenantContext } from './tenant-context';
-import { TenantMiddleware } from './tenant.middleware';
 
+/**
+ * TenantModule provides tenant context services.
+ * 
+ * Exports:
+ * - TenantContext: Injectable service for accessing current tenant information
+ */
 @Module({
-  providers: [TenantContext, TenantMiddleware],
-  exports: [TenantContext, TenantMiddleware],
+  providers: [TenantContext],
+  exports: [TenantContext],
 })
 export class TenantModule {}
-

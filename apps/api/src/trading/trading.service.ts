@@ -58,7 +58,7 @@ export class TradingService {
         type: "TRADING_RECOMPUTE_REQUESTED",
         summary: `Requested trading readiness recompute`,
         payload: { loanId },
-      },
+      } as any, // tenantId injected by Prisma extension
     });
 
     await this.queue.enqueueTradingRecompute({ tenantId: this.tenantContext.tenantId, loanId });

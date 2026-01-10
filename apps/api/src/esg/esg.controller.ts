@@ -3,6 +3,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { EsgService } from "./esg.service";
 import { CreateKpiRequestDto, ESGSummaryResponseDto, UploadEvidenceResponseDto } from "./dto/esg.dto";
 import { TenantContext } from "../tenant/tenant-context";
+import { Roles } from "../auth/roles.decorator";
 
 @Controller("loans/:loanId/esg")
 export class EsgController {
@@ -18,6 +19,7 @@ export class EsgController {
     return this.esg.getSummary({ loanId }) as any;
   }
 
+  @Roles('ESG_ANALYST', 'ESG_VERIFIER', 'TENANT_ADMIN')
   @Post("kpis")
   async createKpi(
     @Param("loanId") loanId: string,
@@ -26,6 +28,7 @@ export class EsgController {
     return this.esg.createKpi({ loanId, body });
   }
 
+  @Roles('ESG_ANALYST', 'ESG_VERIFIER', 'TENANT_ADMIN')
   @Post("evidence/upload")
   @UseInterceptors(FileInterceptor("file"))
   async uploadEvidence(
@@ -42,6 +45,7 @@ export class EsgController {
     }) as any;
   }
 
+  @Roles('ESG_ANALYST', 'ESG_VERIFIER', 'TENANT_ADMIN')
   @Post("evidence/:evidenceId/verify")
   async verifyNow(
     @Headers("x-actor") actor: string | undefined,

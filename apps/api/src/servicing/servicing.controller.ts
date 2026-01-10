@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
 import { ServicingService } from "./servicing.service";
 import { SetScenarioRequestDto, SetScenarioResponseDto, ServicingSummaryResponseDto } from "./dto/servicing.dto";
 import { TenantContext } from "../tenant/tenant-context";
+import { Roles } from "../auth/roles.decorator";
 
 @Controller("loans/:loanId/servicing")
 export class ServicingController {
@@ -17,6 +18,7 @@ export class ServicingController {
     return this.servicing.getSummary({ loanId }) as any;
   }
 
+  @Roles('SERVICING_MANAGER', 'TENANT_ADMIN')
   @Post("scenario")
   async setScenario(
     @Headers("x-actor") actor: string | undefined,
@@ -30,6 +32,7 @@ export class ServicingController {
     }) as any;
   }
 
+  @Roles('SERVICING_MANAGER', 'TENANT_ADMIN')
   @Post("recompute")
   async recompute(
     @Headers("x-actor") actor: string | undefined,

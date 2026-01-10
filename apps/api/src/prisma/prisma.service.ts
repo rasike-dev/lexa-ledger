@@ -1,8 +1,12 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-import { TenantContext } from "../tenant/tenant-context";
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { tenantALS } from '../tenant/tenant-als';
 
-const TENANT_MODELS = new Set<string>([
+/**
+ * List of models that require tenant isolation.
+ * IMPORTANT: Keep this in sync with your schema. Any tenant-scoped model must be listed here.
+ */
+const TENANT_MODELS = new Set([
   'Loan',
   'Document',
   'DocumentVersion',
@@ -18,65 +22,187 @@ const TENANT_MODELS = new Set<string>([
   'AuditEvent',
 ]);
 
+/**
+ * Creates a Prisma Client with tenant enforcement extension.
+ * The extension automatically injects tenantId into all queries for tenant-scoped models.
+ */
+const createExtendedPrismaClient = () => {
+  const baseClient = new PrismaClient({
+    log: process.env.NODE_ENV === 'production' 
+      ? ['error'] 
+      : ['warn', 'error'],
+  });
+
+  return baseClient.$extends({
+    name: 'tenant-enforcement',
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          // Skip non-tenant models
+          if (!TENANT_MODELS.has(model)) {
+            return query(args);
+          }
+
+          // Get tenant context from AsyncLocalStorage
+          const store = tenantALS.getStore();
+          
+          if (!store?.tenantId) {
+            throw new Error(
+              `[TenantEnforcement] Tenant context missing for ${model}.${operation}. ` +
+              `Ensure the request is authenticated and tenant context is set.`
+            );
+          }
+
+          const { tenantId } = store;
+          
+          // Clone args to avoid mutation
+          const modifiedArgs: any = { ...args };
+
+          // Handle different operation types
+          switch (operation) {
+            case 'findFirst':
+            case 'findMany':
+            case 'findUnique':
+            case 'count':
+            case 'aggregate':
+            case 'groupBy':
+              // Inject tenantId into WHERE clause for reads
+              modifiedArgs.where = { ...modifiedArgs.where, tenantId };
+              break;
+
+            case 'create':
+              // Inject tenantId into DATA for create
+              modifiedArgs.data = { ...modifiedArgs.data, tenantId };
+              break;
+
+            case 'createMany':
+              // Inject tenantId into each item in DATA array
+              if (Array.isArray(modifiedArgs.data)) {
+                modifiedArgs.data = modifiedArgs.data.map((item: any) => ({
+                  ...item,
+                  tenantId,
+                }));
+              }
+              break;
+
+            case 'update':
+            case 'delete':
+            case 'updateMany':
+            case 'deleteMany':
+              // Inject tenantId into WHERE clause for updates/deletes
+              modifiedArgs.where = { ...modifiedArgs.where, tenantId };
+              break;
+
+            case 'upsert':
+              // For upsert, inject into both WHERE and CREATE
+              modifiedArgs.where = { ...modifiedArgs.where, tenantId };
+              modifiedArgs.create = { ...modifiedArgs.create, tenantId };
+              break;
+
+            default:
+              // Log unknown operation in development
+              if (process.env.NODE_ENV !== 'production') {
+                Logger.warn(
+                  `[TenantEnforcement] Unknown operation "${operation}" on model "${model}". ` +
+                  `TenantId may not be enforced.`,
+                  'PrismaService'
+                );
+              }
+          }
+
+          return query(modifiedArgs);
+        },
+      },
+    },
+  });
+};
+
+type ExtendedClient = ReturnType<typeof createExtendedPrismaClient>;
+
+// Singleton pattern with proper typing
+const globalForPrisma = globalThis as unknown as {
+  prisma: ExtendedClient | undefined;
+};
+
+const prisma = globalForPrisma.prisma ?? createExtendedPrismaClient();
+
+// Cache in development to avoid reconnection on hot reload
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+/**
+ * Prisma Service with automatic tenant enforcement via Client Extensions.
+ * 
+ * All queries on tenant-scoped models automatically have tenantId injected.
+ * Tenant context is retrieved from AsyncLocalStorage set by TenantInterceptor.
+ */
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
-  constructor(private readonly tenantContext: TenantContext) {
-    super();
-  }
+export class PrismaService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PrismaService.name);
+
+  // Expose all Prisma models through the extended client
+  loan = prisma.loan;
+  document = prisma.document;
+  documentVersion = prisma.documentVersion;
+  clause = prisma.clause;
+  tradingChecklistItem = prisma.tradingChecklistItem;
+  tradingReadinessSnapshot = prisma.tradingReadinessSnapshot;
+  covenant = prisma.covenant;
+  covenantTestResult = prisma.covenantTestResult;
+  loanScenario = prisma.loanScenario;
+  eSGKpi = prisma.eSGKpi;
+  eSGEvidence = prisma.eSGEvidence;
+  eSGVerification = prisma.eSGVerification;
+  auditEvent = prisma.auditEvent;
+  tenant = prisma.tenant;
+  user = prisma.user;
 
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await (prisma as any).$connect();
+      this.logger.log('Database connection established');
+    } catch (error) {
+      this.logger.error('Failed to connect to database', error);
+      throw error;
+    }
+  }
 
-    // Register tenant enforcement middleware
-    (this as any).$use(async (params: any, next: any) => {
-      const model = params.model;
-      if (!model || !TENANT_MODELS.has(model)) return next(params);
-
-      const tenantId = this.tenantContext.tenantId;
-
-      // For non-public routes, tenantId must exist. If it doesn't, block.
-      // (Public endpoints should avoid hitting tenant models.)
-      if (!tenantId) {
-        throw new Error(`TenantContext missing tenantId for model ${model}`);
-      }
-
-      // Inject tenantId into reads
-      if (['findFirst', 'findMany', 'findUnique', 'count', 'aggregate', 'groupBy'].includes(params.action)) {
-        params.args ??= {};
-        params.args.where ??= {};
-        params.args.where.tenantId = tenantId;
-      }
-
-      // Inject tenantId into create
-      if (params.action === 'create') {
-        params.args ??= {};
-        params.args.data ??= {};
-        params.args.data.tenantId = tenantId;
-      }
-
-      // Inject tenantId into update/delete to prevent cross-tenant mutation
-      if (['update', 'delete', 'updateMany', 'deleteMany'].includes(params.action)) {
-        params.args ??= {};
-        params.args.where ??= {};
-        params.args.where.tenantId = tenantId;
-      }
-
-      return next(params);
-    });
+  async onModuleDestroy() {
+    await (prisma as any).$disconnect();
+    this.logger.log('Database connection closed');
   }
 
   async enableShutdownHooks(app: any) {
     app.enableShutdownHooks();
-    this.$on("beforeExit" as any, async () => {
-      await this.$disconnect();
-    });
   }
 
-  async onModuleDestroy() {
-    await this.$disconnect();
+  /**
+   * Execute queries in a transaction.
+   * Note: The transaction callback receives the extended client, so tenant enforcement applies.
+   */
+  $transaction<R>(
+    fn: (prisma: ExtendedClient) => Promise<R>,
+    options?: any
+  ): Promise<R> {
+    return (prisma as any).$transaction(fn, options);
+  }
+
+  /**
+   * Execute raw queries.
+   * WARNING: Raw queries bypass tenant enforcement. Use with caution.
+   */
+  $queryRaw(query: any, ...values: any[]) {
+    this.logger.warn('Executing raw query - tenant enforcement bypassed');
+    return (prisma as any).$queryRaw(query, ...values);
+  }
+
+  /**
+   * Execute raw commands.
+   * WARNING: Raw commands bypass tenant enforcement. Use with caution.
+   */
+  $executeRaw(query: any, ...values: any[]) {
+    this.logger.warn('Executing raw command - tenant enforcement bypassed');
+    return (prisma as any).$executeRaw(query, ...values);
   }
 }
-

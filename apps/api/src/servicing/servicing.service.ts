@@ -82,7 +82,7 @@ export class ServicingService {
     await this.prisma.loanScenario.upsert({
       where: { loanId },
       update: { mode: scenario },
-      create: { loanId, mode: scenario },
+      create: { loanId, mode: scenario } as any, // tenantId injected by Prisma extension
     });
 
     const actor =
@@ -98,7 +98,7 @@ export class ServicingService {
         type: "SERVICING_SCENARIO_SET",
         summary: `Servicing scenario set to ${scenario}`,
         payload: { loanId, scenario },
-      },
+      } as any, // tenantId injected by Prisma extension
     });
 
     // Enqueue recompute job for this scenario
@@ -136,7 +136,7 @@ export class ServicingService {
         type: "SERVICING_RECOMPUTE_REQUESTED",
         summary: `Requested servicing recompute (${scenario})`,
         payload: { loanId, scenario },
-      },
+      } as any, // tenantId injected by Prisma extension
     });
 
     await this.queue.enqueueServicingRecompute({
