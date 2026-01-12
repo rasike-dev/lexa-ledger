@@ -1,9 +1,14 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "./layout/AppShell";
 import { PORTFOLIO, INGEST, loanPaths } from "./routes/paths";
+import { RequireAuth } from "./guards/RequireAuth";
 import { RequireRole } from "./guards/RequireRole";
 import { Roles } from "../auth/roles";
 
+import { LoginPage } from "./pages/LoginPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
+import { DesktopLoginWaitingPage } from "./pages/DesktopLoginWaitingPage";
+import { AuditViewerPage } from "./pages/AuditViewerPage";
 import { PortfolioHome } from "../features/portfolio/pages/PortfolioHome";
 import { IngestLoan } from "../features/origination/pages/IngestLoan";
 import { LoanOverview } from "../features/loans/pages/LoanOverview";
@@ -15,8 +20,18 @@ import TradingReport from "../features/trading/pages/TradingReport";
 import { Unauthorized } from "./pages/Unauthorized";
 
 export const appRouter = createBrowserRouter([
+  // Public routes (no authentication required)
+  { path: "/login", element: <LoginPage /> },
+  { path: "/auth/callback", element: <AuthCallbackPage /> },
+  { path: "/desktop-login-waiting", element: <DesktopLoginWaitingPage /> },
+  
+  // Protected routes (authentication required)
   {
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [
       { path: "/", element: <Navigate to={PORTFOLIO} replace /> },
       
@@ -80,6 +95,16 @@ export const appRouter = createBrowserRouter([
       
       // ESG - accessible to all (action-gated internally)
       { path: loanPaths.esg(":loanId"), element: <LoanESG /> },
+
+      // Audit Viewer - requires COMPLIANCE_AUDITOR or TENANT_ADMIN (Step E2)
+      {
+        path: "/audit",
+        element: (
+          <RequireRole roles={[Roles.COMPLIANCE_AUDITOR, Roles.TENANT_ADMIN]}>
+            <AuditViewerPage />
+          </RequireRole>
+        ),
+      },
 
       // Unauthorized page
       { path: "/unauthorized", element: <Unauthorized /> },

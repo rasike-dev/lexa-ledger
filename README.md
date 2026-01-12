@@ -30,19 +30,51 @@ LEXA Ledger turns LMA loan documents into living digital assets — improving ef
 
 - Node.js 18+
 - Rust 1.70+ (for Tauri)
-- npm or yarn
+- pnpm 8+ (recommended)
+- PostgreSQL 15+
+- Redis 7+
+- MinIO (or S3)
+- Keycloak 23+ (for SSO)
 
 ### Installation
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
-# Development mode
-npm run dev
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Keycloak, PostgreSQL, Redis, MinIO credentials
 
-# Build for production
-npm run build
+# Run database migrations
+pnpm prisma migrate dev
+
+# Seed database
+pnpm prisma db seed
+
+# Start services (in separate terminals)
+pnpm api:dev          # Backend API (port 3000)
+pnpm worker:dev       # Background worker
+pnpm dev              # Frontend (port 5173)
+
+# For desktop app
+pnpm tauri dev
+```
+
+### Demo Credentials
+
+```bash
+# Tenant Admin (full access)
+Username: rasike
+Password: rasike
+
+# Compliance Auditor (read-only)
+Username: auditor
+Password: auditor
+
+# Different Tenant (isolation demo)
+Username: testuser
+Password: testuser
 ```
 
 ---
@@ -50,17 +82,27 @@ npm run build
 ## 🏗️ Tech Stack
 
 **Frontend**:
-- Tauri (Desktop framework)
+- Tauri v2 (Desktop framework with native security)
 - React + TypeScript + Vite
-- Tailwind CSS + shadcn/ui
-- React Router
-- TanStack Query
-- Zustand
-- i18next
+- TanStack Query (data fetching & caching)
+- Zustand (state management)
+- React Router v6
+- i18next (internationalization)
 
-**Backend** (Future):
-- NestJS or FastAPI (for production API)
-- Currently: Mock services with MSW
+**Backend**:
+- NestJS + TypeScript
+- Prisma ORM + PostgreSQL
+- Redis + BullMQ (async job processing)
+- MinIO (S3-compatible storage)
+- Keycloak (OIDC/SSO authentication)
+
+**Security**:
+- JWT-based authentication (OIDC)
+- Role-Based Access Control (RBAC)
+- Tenant isolation (multi-tenancy)
+- Stronghold (encrypted token vault for desktop)
+- Helmet (security headers)
+- Rate limiting (user/IP-based)
 
 **Testing**:
 - Vitest (Unit/Component tests)
@@ -89,11 +131,24 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed structure.
 
 ## 🎯 Core Features
 
+### Business Features
 1. **Digital Loan Twin Engine** - Convert loan documents into structured digital records
 2. **Clause Intelligence & Change Impact** - Clause-level parsing and amendment impact analysis
 3. **Covenant & Obligation Tracker** - Real-time covenant monitoring with early breach warnings
 4. **Trade Readiness Snapshot** - Instant due diligence and trade readiness scoring
 5. **ESG Performance Ledger** - Structured ESG metrics with comparability and verification
+
+### Enterprise Security & Compliance (Week 2)
+- **OIDC Authentication** - Single Sign-On via Keycloak
+- **Multi-tenant Architecture** - Tenant isolation enforced at database level
+- **Role-Based Access Control (RBAC)** - 12 enterprise roles with granular permissions
+- **Comprehensive Audit Trail** - Immutable event logging with correlation ID tracing
+- **Identity Debug Endpoint** - `/api/me` for support and demo visibility
+- **Audit Viewer UI** - Searchable, filterable, exportable audit events
+- **Desktop Security** - Stronghold encrypted token vault + system browser auth
+- **Rate Limiting** - User/IP-based throttling to prevent abuse
+- **Security Headers** - Helmet middleware + restricted CORS
+- **Session Management** - Robust 401 handling with state cleanup
 
 See [BUSINESS_REQUIREMENTS.md](./BUSINESS_REQUIREMENTS.md) for detailed feature descriptions.
 
@@ -205,6 +260,80 @@ This is a hackathon project. For collaboration, please coordinate with the team.
 
 ---
 
-**Status**: In Development  
-**Last Updated**: Phase 2 - AppShell + Routing Skeleton
+## 🔐 Architecture Highlights
+
+### Multi-Tenancy
+- Tenant ID derived from JWT claims (no header spoofing)
+- Prisma Client Extensions for automatic tenant filtering
+- AsyncLocalStorage for request-scoped context
+- All queries tenant-safe by default
+
+### Authentication & Authorization
+- OIDC/OAuth 2.0 flow via Keycloak
+- JWT validation on every API request
+- 12 enterprise roles: TENANT_ADMIN, COMPLIANCE_AUDITOR, TRADING_ANALYST, etc.
+- Controller-level `@Roles()` decorators + global `RolesGuard`
+- UI role simulation for demo purposes (UI-only, backend still enforces)
+
+### Audit & Observability
+- Every mutation logged to `AuditEvent` table
+- Enriched with: actor, roles, tenant, correlation ID, IP, user agent
+- Centralized `AuditService` ensures consistency
+- Immutable by design (no updates/deletes)
+- Audit viewer UI with filters and export
+
+### Desktop Security (Tauri v2)
+- **Stronghold Plugin** - Encrypted vault for refresh tokens
+- **Argon2-based Key Derivation** - Brute-force resistant
+- **System Browser Auth** - RFC 8252 compliant (no embedded webview)
+- **Deep Link Callback** - `lexa-ledger://auth/callback`
+- **OS-level Security** - Credentials managed by system keychain
+
+### Data Pipeline
+```
+User Action
+    ↓
+NestJS Controller (JWT validated, roles checked)
+    ↓
+Service Layer (business logic)
+    ↓
+Prisma (tenant-filtered queries via extension)
+    ↓
+PostgreSQL (row-level tenant isolation)
+    ↓
+Audit Trail (immutable event log)
+    ↓
+Redis + BullMQ (async processing)
+    ↓
+Worker (SERVICE actor, tenant context preserved)
+```
+
+---
+
+## 🎭 Demo Features
+
+### Role Simulation (UI-only)
+- Switch between role sets instantly
+- Shows UI changes without backend login
+- Clear "UI Role Simulation" badge
+- Backend always enforces real token
+
+### Identity Panel
+- Shows user, tenant, roles from JWT
+- Server-validated identity (proof panel)
+- Correlation ID for request tracing
+- One-click copy for debugging
+
+### Audit Trail Demo
+1. Perform action (create loan, upload doc, etc.)
+2. Copy correlation ID from Identity Panel
+3. Open Audit Viewer (`/audit`)
+4. Search by correlation ID
+5. See complete request trace with actor context
+
+---
+
+**Status**: ✅ Enterprise-Ready (Week 2 Complete)  
+**Last Updated**: January 12, 2026  
+**Version**: 0.1.0
 

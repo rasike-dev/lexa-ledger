@@ -16,7 +16,8 @@
         "width": 800,
         "height": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "focus": true
       }
     ],
     "security": {
@@ -33,5 +34,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "deepLink": {
+      "schemes": ["lexa-ledger"]
+    }
   }
 }

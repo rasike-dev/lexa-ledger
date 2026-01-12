@@ -31,6 +31,9 @@ type UIState = {
 
   demoMode: boolean;
   setDemoMode: (on: boolean) => void;
+
+  // Reset state on logout (prevent cross-tenant data leakage)
+  reset: () => void;
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -81,5 +84,17 @@ export const useUIStore = create<UIState>((set) => ({
       demoMode: false,
 
       // keep activeLoanId as-is; do not wipe navigation
+    })),
+
+  // Reset entire UI state on logout (prevents cross-tenant data leakage)
+  reset: () =>
+    set(() => ({
+      activeLoanId: null,
+      rightDrawerOpen: false,
+      servicingScenarioByLoan: {},
+      lastExtractionAt: null,
+      demoMode: false,
+      // Keep user preferences: role, theme, language
+      // These are UI preferences, not tenant data
     })),
 }));

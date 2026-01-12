@@ -37,6 +37,12 @@ export const navSections: NavSection[] = [
         path: INGEST,
         rolesAllowed: [Roles.LOAN_OFFICER, Roles.TENANT_ADMIN],
       },
+      {
+        key: "audit",
+        labelKey: "nav.audit",
+        path: "/audit",
+        rolesAllowed: [Roles.COMPLIANCE_AUDITOR, Roles.TENANT_ADMIN],
+      },
     ],
   },
   {

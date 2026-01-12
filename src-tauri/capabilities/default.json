@@ -6,6 +6,11 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "stronghold:default",
+    "store:default",
+    "core:path:default",
+    "deep-link:default",
+    "opener:default"
   ]
 }

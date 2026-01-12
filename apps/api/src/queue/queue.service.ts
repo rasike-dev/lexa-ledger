@@ -6,23 +6,27 @@ export type DocumentExtractJob = {
   loanId: string;
   documentId: string;
   documentVersionId: string;
+  correlationId?: string | null;
 };
 
 export type ServicingRecomputeJob = {
   tenantId: string;
   loanId: string;
   scenario: "BASE" | "STRESS";
+  correlationId?: string | null;
 };
 
 export type TradingRecomputeJob = {
   tenantId: string;
   loanId: string;
+  correlationId?: string | null;
 };
 
 export type ESGVerifyJob = {
   tenantId: string;
   loanId: string;
   evidenceId: string;
+  correlationId?: string | null;
 };
 
 @Injectable()

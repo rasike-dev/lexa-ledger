@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../auth/roles.decorator';
 import { AuditQueryService } from './audit.query.service';
 
@@ -39,8 +40,11 @@ export class AuditController {
    *   items: AuditEvent[],
    *   nextCursor: string | null  // null if no more pages
    * }
+   * 
+   * Rate limit: Stricter limits for high-value compliance data
    */
   @Get('events')
+  @Throttle({ default: { ttl: 60_000, limit: 30 } }) // 30 req/min for audit export
   async list(
     @Query('from') from?: string,
     @Query('to') to?: string,

@@ -6,6 +6,7 @@
     },
     "portfolio": "Portfolio",
     "origination": "Origination",
+    "audit": "Audit Viewer",
     "loan": {
       "overview": "Overview",
       "documents": "Documents",

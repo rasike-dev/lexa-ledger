@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../store/uiStore";
 import { loanPaths } from "../routes/paths";
+import { IdentityPanel } from "../components/IdentityPanel";
 
 export function Topbar() {
   const { t } = useTranslation("common");
@@ -121,6 +122,11 @@ export function Topbar() {
         >
           {theme === "dark" ? t("theme.light") : t("theme.dark")}
         </button>
+
+        {/* Week 2.5: Identity Panel with user, tenant, roles, and logout */}
+        <div style={{ marginLeft: 8, paddingLeft: 16, borderLeft: "1px solid rgb(var(--border))" }}>
+          <IdentityPanel />
+        </div>
       </div>
     </div>
   );

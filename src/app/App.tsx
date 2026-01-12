@@ -4,6 +4,7 @@ import { QueryProvider } from "./providers/QueryProvider";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { I18nProvider } from "./providers/I18nProvider";
 import { ErrorBoundary } from "./providers/ErrorBoundary";
+import { ToastHost } from "./components/ToastHost";
 
 export function App() {
   return (
@@ -12,6 +13,7 @@ export function App() {
         <ThemeProvider>
           <QueryProvider>
             <RouterProvider router={appRouter} />
+            <ToastHost />
           </QueryProvider>
         </ThemeProvider>
       </I18nProvider>

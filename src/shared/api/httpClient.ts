@@ -2,11 +2,16 @@
 
 import { z } from 'zod'
 import { useAuthStore } from '@/app/store/authStore'
+import { useUIStore } from '@/app/store/uiStore'
+import { beginHandle401, resetHandle401 } from '@/auth/sessionEvents'
+import { queryClient } from '@/app/providers/QueryProvider'
 
 /**
  * Week 2 OIDC: tenant + actor derived from JWT token.
  * Authorization: Bearer <token> attached automatically.
  * No x-tenant-id header - tenant context derived from JWT.
+ * 
+ * Week 2.5 Security: Automatic session expiry handling on 401
  */
 const EnvSchema = z.object({
   VITE_API_BASE_URL: z.string().default('/api'),
@@ -126,6 +131,39 @@ export const httpClient = {
       undefined
 
     if (!res.ok) {
+      // Week 2.5 Security: Handle session expiry (401) with coordinated cleanup
+      if (res.status === 401) {
+        if (beginHandle401()) {
+          // Enterprise pattern: clear all app state before redirect
+          queryClient.clear() // Clear TanStack Query cache
+          useAuthStore.getState().clearAuth() // Clear auth state
+          useUIStore.getState().reset() // Clear UI state (prevent tenant data leakage)
+
+          // Dispatch toast event for user feedback
+          window.dispatchEvent(
+            new CustomEvent('lexa:toast', {
+              detail: {
+                type: 'warning',
+                message: 'Session expired. Please sign in again.',
+              },
+            })
+          )
+
+          // Redirect to login
+          window.location.href = '/login'
+
+          // Allow new 401 handling after redirect completes
+          setTimeout(resetHandle401, 1500)
+        }
+        // If already handling 401, silently reject to avoid duplicate redirects
+        throw new ApiException({
+          status: 401,
+          code: 'SESSION_EXPIRED',
+          message: 'Session expired',
+          requestId,
+        })
+      }
+
       const payload = await parseResponse(res)
 
       // Attempt to normalize backend error shapes
@@ -202,6 +240,39 @@ export const httpClient = {
       undefined
 
     if (!res.ok) {
+      // Week 2.5 Security: Handle session expiry (401) with coordinated cleanup
+      if (res.status === 401) {
+        if (beginHandle401()) {
+          // Enterprise pattern: clear all app state before redirect
+          queryClient.clear() // Clear TanStack Query cache
+          useAuthStore.getState().clearAuth() // Clear auth state
+          useUIStore.getState().reset() // Clear UI state (prevent tenant data leakage)
+
+          // Dispatch toast event for user feedback
+          window.dispatchEvent(
+            new CustomEvent('lexa:toast', {
+              detail: {
+                type: 'warning',
+                message: 'Session expired. Please sign in again.',
+              },
+            })
+          )
+
+          // Redirect to login
+          window.location.href = '/login'
+
+          // Allow new 401 handling after redirect completes
+          setTimeout(resetHandle401, 1500)
+        }
+        // If already handling 401, silently reject to avoid duplicate redirects
+        throw new ApiException({
+          status: 401,
+          code: 'SESSION_EXPIRED',
+          message: 'Session expired',
+          requestId,
+        })
+      }
+
       const payload = await parseResponse(res)
 
       const message =

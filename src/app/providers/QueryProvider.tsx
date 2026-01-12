@@ -7,6 +7,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// Export singleton for logout cleanup and other utilities
+export { queryClient };
+
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

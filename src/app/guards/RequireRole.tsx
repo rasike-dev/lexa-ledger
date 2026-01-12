@@ -19,7 +19,8 @@ type RequireRoleProps = {
  * } />
  */
 export function RequireRole({ children, roles }: RequireRoleProps) {
-  const { roles: userRoles, isAuthenticated } = useAuthStore();
+  const userRoles = useAuthStore((s) => s.roles);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
   // If not authenticated, let the auth guard handle it
   if (!isAuthenticated) {
