@@ -6,6 +6,7 @@ import { QueueService } from "../queue/queue.service";
 import { DocumentType } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
 import { AuditService } from "../audit/audit.service";
+import { ImpactService } from "../ops/impact/impact.service";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -16,6 +17,7 @@ export class DocumentsService {
     private readonly queue: QueueService,
     private readonly tenantContext: TenantContext,
     private readonly auditService: AuditService,
+    private readonly impactService: ImpactService, // C2: Impact detection
   ) {}
 
   private checksum(buf: Buffer) {
@@ -106,6 +108,17 @@ export class DocumentsService {
       documentId: document.id,
       documentVersionId: docVersion.id,
       correlationId: ctx.correlationId,
+    });
+
+    // C2: Impact detection - document created affects downstream facts
+    await this.impactService.onSourceChanged({
+      tenantId: this.tenantContext.tenantId,
+      correlationId: ctx.correlationId,
+      actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
+      sourceType: 'DOCUMENT',
+      sourceId: document.id,
+      sourceAction: 'CREATED',
+      loanId,
     });
 
     return {
@@ -293,6 +306,17 @@ export class DocumentsService {
       documentId: document.id,
       documentVersionId: docVersion.id,
       correlationId: ctx.correlationId,
+    });
+
+    // C2: Impact detection - document version updated affects downstream facts
+    await this.impactService.onSourceChanged({
+      tenantId: this.tenantContext.tenantId,
+      correlationId: ctx.correlationId,
+      actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
+      sourceType: 'DOCUMENT',
+      sourceId: document.id,
+      sourceAction: 'UPDATED',
+      loanId: document.loanId,
     });
 
     return {

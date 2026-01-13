@@ -14,7 +14,7 @@ import { Request } from 'express';
  * - Safe for any authenticated user (non-sensitive data)
  * - Returns server-side view of identity (from JWT + request context)
  */
-@Controller('api/me')
+@Controller('me')
 export class MeController {
   @Get()
   me(@Req() req: Request) {

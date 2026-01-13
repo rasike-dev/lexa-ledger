@@ -21,7 +21,7 @@ enum DocumentType {
   OTHER
 }
 
-enum CovenantStatus {
+enum CovenantTestStatus {
   PASS
   WARN
   FAIL
@@ -92,20 +92,28 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships               Membership[]
-  loans                     Loan[]
-  auditEvents               AuditEvent[]
-  documents                 Document[]
-  documentVersions          DocumentVersion[]
-  clauses                   Clause[]
-  loanScenarios             LoanScenario[]
-  covenants                 Covenant[]
-  covenantTestResults       CovenantTestResult[]
-  tradingChecklistItems     TradingChecklistItem[]
-  tradingReadinessSnapshots TradingReadinessSnapshot[]
-  esgKpis                   ESGKpi[]
-  esgEvidence               ESGEvidence[]
-  esgVerifications          ESGVerification[]
+  memberships                      Membership[]
+  loans                            Loan[]
+  auditEvents                      AuditEvent[]
+  documents                        Document[]
+  documentVersions                 DocumentVersion[]
+  clauses                          Clause[]
+  loanScenarios                    LoanScenario[]
+  covenants                        Covenant[]
+  covenantTestResults              CovenantTestResult[]
+  tradingChecklistItems            TradingChecklistItem[]
+  tradingReadinessSnapshots        TradingReadinessSnapshot[]
+  tradingReadinessFactSnapshots    TradingReadinessFactSnapshot[]
+  tradingReadinessExplanations     TradingReadinessExplanation[]
+  esgKpis                          ESGKpi[]
+  esgEvidence                      ESGEvidence[]
+  esgVerifications                 ESGVerification[]
+  esgKpiFactSnapshots              EsgKpiFactSnapshot[]
+  esgKpiExplanations               EsgKpiExplanation[]
+  covenantEvaluationFactSnapshots  CovenantEvaluationFactSnapshot[]
+  covenantExplanations             CovenantExplanation[]
+  portfolioRiskFactSnapshots       PortfolioRiskFactSnapshot[]
+  portfolioRiskExplanations        PortfolioRiskExplanation[]
 }
 
 model User {
@@ -149,15 +157,21 @@ model Loan {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  documents                 Document[]
-  scenario                  LoanScenario?
-  covenants                 Covenant[]
-  covenantTestResults       CovenantTestResult[]
-  tradingChecklistItems     TradingChecklistItem[]
-  tradingReadinessSnapshots TradingReadinessSnapshot[]
-  esgKpis                   ESGKpi[]
-  esgEvidence               ESGEvidence[]
-  esgVerifications          ESGVerification[]
+  documents                        Document[]
+  scenario                         LoanScenario?
+  covenants                        Covenant[]
+  covenantTestResults              CovenantTestResult[]
+  tradingChecklistItems            TradingChecklistItem[]
+  tradingReadinessSnapshots        TradingReadinessSnapshot[]
+  tradingReadinessFactSnapshots    TradingReadinessFactSnapshot[]
+  tradingReadinessExplanations     TradingReadinessExplanation[]
+  esgKpis                          ESGKpi[]
+  esgEvidence                      ESGEvidence[]
+  esgVerifications                 ESGVerification[]
+  esgKpiFactSnapshots              EsgKpiFactSnapshot[]
+  esgKpiExplanations               EsgKpiExplanation[]
+  covenantEvaluationFactSnapshots  CovenantEvaluationFactSnapshot[]
+  covenantExplanations             CovenantExplanation[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -306,7 +320,7 @@ model CovenantTestResult {
   covenantId String
   scenario   ScenarioMode
   value      Float
-  status     CovenantStatus
+  status     CovenantTestStatus
   testedAt   DateTime       @default(now())
   notes      String?
 
@@ -365,6 +379,80 @@ model TradingReadinessSnapshot {
   @@index([tenantId])
   @@index([loanId])
   @@index([computedAt])
+}
+
+// Week 3 - Track A.1: Explainable Trading Readiness
+// Immutable fact snapshot for AI explainability (deterministic, versioned, auditable)
+model TradingReadinessFactSnapshot {
+  id       String @id @default(cuid())
+  tenantId String
+  loanId   String
+
+  // Core readiness metrics (from deterministic engine)
+  readinessScore Int // 0..100
+  readinessBand  ReadinessBand // GREEN / AMBER / RED
+
+  // Contributing factors (deterministic calculations)
+  contributingFactors Json // { documentationCompleteness: 0.92, covenantCompliance: true, ... }
+
+  // Blocking issues (array of human-readable strings)
+  blockingIssues Json // ["Missing executed Amendment #3", ...]
+
+  // Metadata (immutability contract)
+  factVersion Int      @default(1) // For schema evolution
+  computedAt  DateTime @default(now())
+  computedBy  String   @default("SYSTEM") // USER or SYSTEM
+
+  // Hash for audit verification (prevents tampering)
+  factHash String @unique // SHA256 of deterministic fields
+
+  // Audit correlation
+  correlationId String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([computedAt])
+  @@index([readinessBand])
+  @@index([tenantId, loanId, computedAt])
+}
+
+// Week 3 - Track A.1: AI-generated explanations (cached, immutable)
+model TradingReadinessExplanation {
+  id            String   @id @default(cuid())
+  tenantId      String
+  loanId        String
+
+  factHash      String   // Links to TradingReadinessFactSnapshot by hash
+
+  // Cache key fields
+  audience      String   // TRADING_ANALYST | TRADING_VIEWER | INVESTOR | COMPLIANCE
+  verbosity     String   // SHORT | STANDARD | DETAILED
+
+  explainVersion Int     @default(1)
+  provider      String   // demo | openai | anthropic | etc
+
+  // Explanation payload (UI-ready, stored as single JSON blob)
+  result        Json
+
+  // Integrity / deduplication
+  explanationHash String @unique
+
+  // Traceability
+  createdAt     DateTime @default(now())
+  correlationId String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@index([loanId])
+  @@index([factHash])
+  @@index([tenantId, loanId, factHash, createdAt])
 }
 
 model ESGKpi {
@@ -445,4 +533,222 @@ model ESGVerification {
   @@index([loanId])
   @@index([evidenceId])
   @@index([status])
+}
+
+// Week 3 - Track A: Explainable Intelligence
+// ESG KPI Fact Snapshots (deterministic evaluation outputs)
+model EsgKpiFactSnapshot {
+  id            String       @id @default(cuid())
+  tenantId      String
+  loanId        String
+  kpiId         String
+  kpiCode       String
+  kpiName       String
+
+  // Deterministic evaluation outputs
+  status        EsgKpiStatus
+  score         Int?
+  reasonCodes   Json
+
+  // Evidence + provenance (facts only)
+  measurement   Json
+  evidence      Json
+  verification  Json
+  sources       Json
+
+  computedAt    DateTime @default(now())
+  computedBy    String
+  factVersion   Int      @default(1)
+  factHash      String   @unique
+  correlationId String?
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan         Loan                @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  explanations EsgKpiExplanation[]
+
+  @@index([tenantId, loanId, kpiId, computedAt])
+}
+
+// ESG KPI Explanations (cached AI explanations)
+model EsgKpiExplanation {
+  id              String   @id @default(cuid())
+  tenantId        String
+  loanId          String
+  kpiId           String
+  factHash        String
+
+  audience        String
+  verbosity       String
+  explainVersion  Int      @default(1)
+  provider        String
+  result          Json
+  explanationHash String   @unique
+
+  createdAt       DateTime @default(now())
+  correlationId   String?
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan         Loan               @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  factSnapshot EsgKpiFactSnapshot @relation(fields: [factHash], references: [factHash], onDelete: Cascade)
+
+  @@index([tenantId, loanId, kpiId, factHash, createdAt])
+}
+
+enum EsgKpiStatus {
+  PASS
+  FAIL
+  NEEDS_VERIFICATION
+  UNKNOWN
+}
+
+// Week 3 - Track A: Explainable Intelligence
+// Covenant Evaluation Fact Snapshots (deterministic covenant assessments)
+model CovenantEvaluationFactSnapshot {
+  id            String   @id @default(cuid())
+  tenantId      String
+  loanId        String
+  covenantId    String
+  covenantName  String
+  covenantType  String
+
+  // Deterministic evaluation outputs
+  status        CovenantStatus
+  threshold     Json
+  observed      Json
+  breachDetail  Json
+
+  // Inputs used (facts only)
+  inputSignals  Json
+  sourceRefs    Json
+
+  computedAt    DateTime @default(now())
+  computedBy    String
+  factVersion   Int      @default(1)
+  factHash      String   @unique
+  correlationId String?
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan         Loan                  @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  explanations CovenantExplanation[]
+
+  @@index([tenantId, loanId, covenantId, computedAt])
+}
+
+// Covenant Explanations (cached AI explanations)
+model CovenantExplanation {
+  id              String   @id @default(cuid())
+  tenantId        String
+  loanId          String
+  covenantId      String
+  factHash        String
+
+  audience        String
+  verbosity       String
+  explainVersion  Int      @default(1)
+  provider        String
+  result          Json
+  explanationHash String   @unique
+
+  createdAt       DateTime @default(now())
+  correlationId   String?
+
+  tenant       Tenant                           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan         Loan                             @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  factSnapshot CovenantEvaluationFactSnapshot   @relation(fields: [factHash], references: [factHash], onDelete: Cascade)
+
+  @@index([tenantId, loanId, covenantId, factHash, createdAt])
+}
+
+enum CovenantStatus {
+  COMPLIANT
+  BREACH
+  AT_RISK
+  UNKNOWN
+}
+
+// Week 3 - Track A: Portfolio-level Intelligence
+// Portfolio Risk Fact Snapshots (deterministic aggregates)
+model PortfolioRiskFactSnapshot {
+  id            String   @id @default(cuid())
+  tenantId      String
+  portfolioId   String?
+  asOfDate      DateTime
+
+  // Deterministic aggregates
+  totals        Json
+  distributions Json
+  topDrivers    Json
+  anomalies     Json
+
+  computedAt    DateTime @default(now())
+  computedBy    String
+  factVersion   Int      @default(1)
+  factHash      String   @unique
+  correlationId String?
+
+  tenant       Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  explanations PortfolioRiskExplanation[]
+
+  @@index([tenantId, asOfDate, computedAt])
+}
+
+// Portfolio Risk Explanations (cached AI explanations)
+model PortfolioRiskExplanation {
+  id              String   @id @default(cuid())
+  tenantId        String
+  portfolioId     String?
+  factHash        String
+
+  audience        String
+  verbosity       String
+  explainVersion  Int      @default(1)
+  provider        String
+  result          Json
+  explanationHash String   @unique
+
+  createdAt       DateTime @default(now())
+  correlationId   String?
+
+  tenant       Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  factSnapshot PortfolioRiskFactSnapshot  @relation(fields: [factHash], references: [factHash], onDelete: Cascade)
+
+  @@index([tenantId, portfolioId, factHash, createdAt])
+}
+
+// ============================================================================
+// Impact Detection (Week 3 - Track C Step C2)
+// ============================================================================
+
+/**
+ * Impact Event
+ * 
+ * Records when a source change (Document/Amendment) affects downstream facts.
+ * Enables audit trail of change propagation and impact graph visualization.
+ * 
+ * Flow:
+ * 1. Source changes (Document updated)
+ * 2. ImpactService detects affected targets
+ * 3. ImpactEvent persisted (audit trail)
+ * 4. Recompute jobs enqueued for targets
+ * 5. Drift detection → explanation recompute (Track B)
+ */
+model ImpactEvent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  correlationId String?
+  
+  // Source (what changed)
+  sourceType    String   // DOCUMENT | AMENDMENT
+  sourceId      String
+  sourceAction  String   // CREATED | UPDATED | DELETED
+  
+  // Detected impacts (JSON payload for flexibility)
+  // Structure: { source, loanId, targets: [...], reasonCodes: [...] }
+  impacts       Json
+  
+  detectedAt    DateTime @default(now())
+
+  @@index([tenantId, detectedAt])
+  @@index([tenantId, sourceType, sourceId])
+  @@index([correlationId])
 }

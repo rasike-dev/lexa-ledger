@@ -13,7 +13,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { httpClient } from '../app/api/httpClient';
+import { httpClient } from '../shared/api/httpClient';
 
 export interface MeResponse {
   userId: string | null;
@@ -30,8 +30,7 @@ export function useMeQuery(enabled: boolean) {
   return useQuery<MeResponse>({
     queryKey: ['me'],
     queryFn: async () => {
-      const response = await httpClient.get('/api/me');
-      return response.data;
+      return await httpClient.get('/api/me');
     },
     enabled,
     staleTime: 30_000, // 30 seconds

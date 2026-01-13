@@ -150,7 +150,36 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed structure.
 - **Security Headers** - Helmet middleware + restricted CORS
 - **Session Management** - Robust 401 handling with state cleanup
 
-See [BUSINESS_REQUIREMENTS.md](./BUSINESS_REQUIREMENTS.md) for detailed feature descriptions.
+### Explainable Intelligence & AI-Ready Architecture (Week 3)
+**Track A: Facts-First Explainability**
+- **Explainable Trading Readiness** - Human-readable explanations for trading scores (AI explains, never computes facts)
+- **ESG KPI Reasoning** - Contextual explanations for ESG compliance and verification status
+- **Covenant Breach Explanations** - Safety-bounded AI explanations of pre-evaluated covenant logic
+- **Portfolio Risk Explanations** - Aggregated risk distribution explanations with actionable recommendations
+- **Explainability UI Drawer** - Generic, reusable "Why?" panel with role-aware verbosity
+- **Cached Explanations** - Server-side caching with stable hashing to reduce AI costs
+
+**Track B: AI Infrastructure & Governance** ✅ COMPLETE
+- **Prompt Registry** - Versioned, code-based prompt templates with strict variable contracts
+- **Output Schema Validation** - Zod-enforced JSON schemas preventing malformed AI outputs
+- **LLM Gateway** - Centralized orchestration with prompt rendering, redaction, checksum, and schema validation
+- **Provider Routing + Fallback** - Policy-based model selection with automatic transient error retry
+- **Audit-Safe AI Calls** - Dual audit trail (AI module + domain module) with cost estimation
+- **Full Gateway Integration** - All 4 explainers (Trading/ESG/Covenant/Portfolio) routed through governance layer
+- **Asynchronous Explanation Jobs** - BullMQ-powered background processing for explanation generation
+- **Drift Detection & Staleness** - Automatic invalidation of explanations when facts change
+- **PII Redaction** - Sensitive data removal from AI prompts with redaction audit trail
+- **AI Rate Limiting** - Redis-based throttling per tenant/user/module/template
+
+**Track C: Operational Intelligence** ✅ COMPLETE
+- **Scheduled Refresh Jobs** - BullMQ repeatable jobs for nightly fact/explanation recomputation
+- **Manual Refresh Trigger** - On-demand tenant-wide refresh via `/api/ops/refresh/nightly`
+- **Impact Detection** - Automatic detection of downstream effects when source data changes
+- **Operational Dashboard** - `/api/ops/summary` providing drift metrics, stale counts, and AI cost
+- **Deep Links to Audit** - One-click navigation from metrics to filtered audit logs
+- **Self-Healing Architecture** - Automated drift → recompute → explanation update pipeline
+
+See [BUSINESS_REQUIREMENTS.md](./BUSINESS_REQUIREMENTS.md) and [WEEK3_TRACK_C_COMPLETE.md](./WEEK3_TRACK_C_COMPLETE.md) for detailed feature descriptions.
 
 ---
 

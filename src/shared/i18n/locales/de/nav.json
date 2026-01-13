@@ -6,6 +6,8 @@
     },
     "portfolio": "Portfolio",
     "origination": "Origination",
+    "audit": "Prüfprotokoll",
+    "ops": "Betriebsintelligenz",
     "loan": {
       "overview": "Übersicht",
       "documents": "Dokumente",

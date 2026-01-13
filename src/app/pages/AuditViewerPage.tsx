@@ -13,9 +13,10 @@
  * - Export: downloads current filtered results
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { httpClient } from '../api/httpClient';
+import { useSearchParams } from 'react-router-dom';
+import { httpClient } from '@/shared/api/httpClient';
 
 type AuditEvent = {
   id: string;
@@ -40,6 +41,7 @@ type AuditResponse = {
 };
 
 export function AuditViewerPage() {
+  const [searchParams] = useSearchParams();
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursors, setCursors] = useState<(string | null)[]>([null]); // Track cursor history for prev
   const limit = 25;
@@ -49,6 +51,27 @@ export function AuditViewerPage() {
   const [correlationId, setCorrelationId] = useState('');
   const [action, setAction] = useState('');
   const [entityType, setEntityType] = useState('');
+  const [module, setModule] = useState(''); // Hidden filter from URL params
+  const [entityId, setEntityId] = useState(''); // Hidden filter from URL params
+
+  // Read URL params on mount (for deep linking)
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    const actorTypeParam = searchParams.get('actorType') as '' | 'USER' | 'SERVICE' | null;
+    const correlationIdParam = searchParams.get('correlationId');
+    const actionParam = searchParams.get('action');
+    const entityTypeParam = searchParams.get('entityType');
+    const moduleParam = searchParams.get('module');
+    const entityIdParam = searchParams.get('entityId');
+
+    if (qParam) setQ(qParam);
+    if (actorTypeParam) setActorType(actorTypeParam);
+    if (correlationIdParam) setCorrelationId(correlationIdParam);
+    if (actionParam) setAction(actionParam);
+    if (entityTypeParam) setEntityType(entityTypeParam);
+    if (moduleParam) setModule(moduleParam);
+    if (entityIdParam) setEntityId(entityIdParam);
+  }, [searchParams]);
 
   const params = useMemo(() => {
     const p: Record<string, any> = { limit };
@@ -58,14 +81,15 @@ export function AuditViewerPage() {
     if (correlationId.trim()) p.correlationId = correlationId.trim();
     if (action.trim()) p.action = action.trim();
     if (entityType.trim()) p.entityType = entityType.trim();
+    if (module.trim()) p.module = module.trim(); // From URL params
+    if (entityId.trim()) p.entityId = entityId.trim(); // From URL params
     return p;
-  }, [cursor, limit, q, actorType, correlationId, action, entityType]);
+  }, [cursor, limit, q, actorType, correlationId, action, entityType, module, entityId]);
 
   const audit = useQuery({
     queryKey: ['audit-events', params],
     queryFn: async () => {
-      const response = await httpClient.get<AuditResponse>('/api/audit/events', { params });
-      return response.data;
+      return await httpClient.get<AuditResponse>('/api/audit/events', { query: params });
     },
     keepPreviousData: true,
   });
@@ -106,6 +130,8 @@ export function AuditViewerPage() {
     setCorrelationId('');
     setAction('');
     setEntityType('');
+    setModule(''); // Clear hidden filter
+    setEntityId(''); // Clear hidden filter
     setCursor(null);
     setCursors([null]);
   };
@@ -131,6 +157,11 @@ export function AuditViewerPage() {
           <div style={{ marginTop: 6, fontSize: 13, color: '#6b7280' }}>
             Search and export immutable audit events. RBAC enforced (COMPLIANCE_AUDITOR + TENANT_ADMIN).
           </div>
+          {(module || entityId) && (
+            <div style={{ marginTop: 8, padding: '6px 12px', background: '#dbeafe', borderRadius: 8, fontSize: 12, color: '#1e40af', fontWeight: 500 }}>
+              🔗 Deep-linked filters applied: {module && `module=${module}`} {entityId && `entityId=${entityId.slice(0, 12)}…`}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>

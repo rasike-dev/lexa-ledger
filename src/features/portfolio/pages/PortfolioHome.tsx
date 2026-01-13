@@ -4,6 +4,8 @@ import { useUIStore } from "../../../app/store/uiStore";
 import { INGEST, loanPaths } from "../../../app/routes/paths";
 import { usePortfolioLoans } from "../hooks/usePortfolioLoans";
 import { usePortfolioSummary } from "../hooks/usePortfolioSummary";
+import PageHeader from "../../../components/layout/PageHeader";
+import { DemoDisclaimer, EmptyState } from "../../../components/common";
 
 type Band = "ALL" | "GREEN" | "AMBER" | "RED";
 type SortKey = "UPDATED" | "AMOUNT" | "TRADING" | "FAILS" | "ESG_PENDING";
@@ -83,72 +85,38 @@ export function PortfolioHome() {
   }
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 8px 0" }}>Portfolio</h1>
-      <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-        Portfolio overview with real-time metrics across all loans.
-      </p>
-
-      <div style={{ display: "flex", gap: 12, marginTop: 12, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <button
-          onClick={() => navigate(INGEST)}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid rgb(var(--border))",
-            background: "rgb(var(--card))",
-            cursor: "pointer",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          + New Loan (Origination)
-        </button>
-
-        <button
-          onClick={() => setDemoMode(!demoMode)}
-          style={{
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: demoMode ? "2px solid rgb(245,158,11)" : "2px solid rgb(var(--primary))",
-            background: demoMode ? "rgba(245,158,11,0.1)" : "rgba(var(--primary-rgb), 0.1)",
-            color: demoMode ? "rgb(245,158,11)" : "rgb(var(--primary))",
-            cursor: "pointer",
-            fontSize: 14,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            transition: "all 0.2s",
-          }}
-        >
-          <span>{demoMode ? "Demo Mode ON" : "Demo Mode OFF"}</span>
-          <span
-            style={{
-              padding: "2px 6px",
-              borderRadius: 4,
-              fontSize: 11,
-              fontWeight: 900,
-              background: demoMode ? "rgb(245,158,11)" : "rgb(var(--primary))",
-              color: "white",
-            }}
-          >
-            {demoMode ? "Fixtures" : "Live API"}
-          </span>
-        </button>
-
-        {demoMode && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "rgb(var(--muted))",
-              fontStyle: "italic",
-            }}
-          >
-            Using hardcoded demo data
+    <div className="p-6">
+      <DemoDisclaimer />
+      
+      <PageHeader
+        title="Portfolio"
+        subtitle="Portfolio overview with real-time metrics across all loans"
+        right={
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(INGEST)}
+              className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
+            >
+              + New Loan
+            </button>
+            <button
+              onClick={() => setDemoMode(!demoMode)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                demoMode
+                  ? 'border-2 border-amber-500 bg-amber-50 text-amber-700'
+                  : 'border-2 border-blue-500 bg-blue-50 text-blue-700'
+              }`}
+            >
+              <span>{demoMode ? 'Demo Mode ON' : 'Demo Mode OFF'}</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-black text-white ${
+                demoMode ? 'bg-amber-600' : 'bg-blue-600'
+              }`}>
+                {demoMode ? 'Fixtures' : 'Live'}
+              </span>
+            </button>
           </div>
-        )}
-      </div>
+        }
+      />
 
       {/* Summary Tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
@@ -315,13 +283,28 @@ export function PortfolioHome() {
         <div style={{ fontWeight: 700, marginBottom: 8 }}>Loans</div>
 
       {loansQ.isLoading ? (
-          <div style={{ color: "rgb(var(--muted))" }}>Loading loans…</div>
+        <div className="text-slate-600">Loading loans…</div>
       ) : loansQ.isError ? (
-        <div style={{ color: "rgb(var(--danger))" }}>Failed to load portfolio.</div>
+        <EmptyState
+          title="Failed to load portfolio"
+          body="There was an error loading your loans. Please try again."
+          icon="alert"
+        />
       ) : filtered.length === 0 ? (
-        <div style={{ color: "rgb(var(--muted))" }}>
-          {q ? "No loans match your search." : "No loans in portfolio."}
-        </div>
+        <EmptyState
+          title={q ? "No loans match your search" : "No loans in portfolio"}
+          body={q ? "Try adjusting your search or filters." : "Create your first loan to get started."}
+          action={
+            !q && (
+              <button
+                onClick={() => navigate(INGEST)}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                + New Loan
+              </button>
+            )
+          }
+        />
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {filtered.map((l: any) => (

@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { DesktopLoginWaitingPage } from "./pages/DesktopLoginWaitingPage";
 import { AuditViewerPage } from "./pages/AuditViewerPage";
+import { OperationalIntelligence } from "../features/ops/OperationalIntelligence";
 import { PortfolioHome } from "../features/portfolio/pages/PortfolioHome";
 import { IngestLoan } from "../features/origination/pages/IngestLoan";
 import { LoanOverview } from "../features/loans/pages/LoanOverview";
@@ -102,6 +103,16 @@ export const appRouter = createBrowserRouter([
         element: (
           <RequireRole roles={[Roles.COMPLIANCE_AUDITOR, Roles.TENANT_ADMIN]}>
             <AuditViewerPage />
+          </RequireRole>
+        ),
+      },
+
+      // Operational Intelligence - requires COMPLIANCE_AUDITOR or TENANT_ADMIN (Step C3)
+      {
+        path: "/ops",
+        element: (
+          <RequireRole roles={[Roles.COMPLIANCE_AUDITOR, Roles.TENANT_ADMIN]}>
+            <OperationalIntelligence />
           </RequireRole>
         ),
       },

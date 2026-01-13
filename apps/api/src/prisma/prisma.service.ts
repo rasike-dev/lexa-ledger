@@ -20,6 +20,15 @@ const TENANT_MODELS = new Set([
   'ESGEvidence',
   'ESGVerification',
   'AuditEvent',
+  'TradingReadinessFactSnapshot',
+  'TradingReadinessExplanation',
+  'EsgKpiFactSnapshot',
+  'EsgKpiExplanation',
+  'CovenantEvaluationFactSnapshot',
+  'CovenantExplanation',
+  'PortfolioRiskFactSnapshot',
+  'PortfolioRiskExplanation',
+  'ImpactEvent', // Week 3 Track C
 ]);
 
 /**
@@ -157,6 +166,19 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   auditEvent = prisma.auditEvent;
   tenant = prisma.tenant;
   user = prisma.user;
+  
+  // Week 3 - Track A: Explainable Intelligence Models
+  tradingReadinessFactSnapshot = prisma.tradingReadinessFactSnapshot;
+  tradingReadinessExplanation = prisma.tradingReadinessExplanation;
+  esgKpiFactSnapshot = prisma.esgKpiFactSnapshot;
+  esgKpiExplanation = prisma.esgKpiExplanation;
+  covenantEvaluationFactSnapshot = prisma.covenantEvaluationFactSnapshot;
+  covenantExplanation = prisma.covenantExplanation;
+  portfolioRiskFactSnapshot = prisma.portfolioRiskFactSnapshot;
+  portfolioRiskExplanation = prisma.portfolioRiskExplanation;
+  
+  // Week 3 - Track C: Operational Intelligence Models
+  impactEvent = prisma.impactEvent;
 
   async onModuleInit() {
     try {

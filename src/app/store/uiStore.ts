@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { UserRole } from "../routes/nav";
+import type { ExplainVerbosity } from "../../api/tradingReadiness";
 
 export type ThemeMode = "light" | "dark";
 export type DatasetMode = "demo";
@@ -32,6 +33,12 @@ type UIState = {
   demoMode: boolean;
   setDemoMode: (on: boolean) => void;
 
+  // Explainability UI state (Week 3 - Track A.1)
+  tradingExplainVerbosity: ExplainVerbosity;
+  setTradingExplainVerbosity: (v: ExplainVerbosity) => void;
+  lastExplainedFactHashByLoan: Record<string, string | undefined>;
+  markExplained: (loanId: string, factHash: string) => void;
+
   // Reset state on logout (prevent cross-tenant data leakage)
   reset: () => void;
 };
@@ -49,6 +56,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   demoMode: false,
 
+  // Explainability UI state
+  tradingExplainVerbosity: "STANDARD",
+  lastExplainedFactHashByLoan: {},
+
   setActiveLoanId: (id) => set(() => ({ activeLoanId: id, rightDrawerOpen: id ? true : false })),
   setRightDrawerOpen: (open) => set(() => ({ rightDrawerOpen: open })),
 
@@ -58,6 +69,15 @@ export const useUIStore = create<UIState>((set) => ({
   setLastExtractionAt: (lastExtractionAt) => set(() => ({ lastExtractionAt })),
 
   setDemoMode: (on) => set(() => ({ demoMode: on })),
+
+  setTradingExplainVerbosity: (v) => set(() => ({ tradingExplainVerbosity: v })),
+  markExplained: (loanId, factHash) =>
+    set((s) => ({
+      lastExplainedFactHashByLoan: {
+        ...s.lastExplainedFactHashByLoan,
+        [loanId]: factHash,
+      },
+    })),
 
   servicingScenarioByLoan: {},
   setServicingScenario: (loanId, scenario) =>
@@ -94,7 +114,8 @@ export const useUIStore = create<UIState>((set) => ({
       servicingScenarioByLoan: {},
       lastExtractionAt: null,
       demoMode: false,
-      // Keep user preferences: role, theme, language
+      lastExplainedFactHashByLoan: {}, // Clear session-level explanation tracking
+      // Keep user preferences: role, theme, language, tradingExplainVerbosity
       // These are UI preferences, not tenant data
     })),
 }));

@@ -28,6 +28,10 @@ export class AuditQueryService {
     entityType?: string;
     entityId?: string;
     action?: string;
+    module?: string;
+    actorType?: 'USER' | 'SERVICE';
+    correlationId?: string;
+    q?: string;
     limit: number;
     cursor: string | null;
   }) {
@@ -44,8 +48,36 @@ export class AuditQueryService {
     if (opts.entityType) where.entityType = opts.entityType;
     if (opts.entityId) where.entityId = opts.entityId;
 
-    // Action filter
-    if (opts.action) where.type = opts.action;
+    // Action filter (note: action is stored as `type` in the database)
+    // Module filter (search in type field prefix, e.g., "TRADING_*")
+    if (opts.action && opts.module) {
+      // Both action and module: exact match
+      where.type = opts.action;
+    } else if (opts.action) {
+      // Just action: exact match
+      where.type = opts.action;
+    } else if (opts.module) {
+      // Just module: prefix match
+      where.type = {
+        startsWith: opts.module,
+        mode: 'insensitive',
+      };
+    }
+
+    // Actor type filter
+    if (opts.actorType) where.actorType = opts.actorType;
+
+    // Correlation ID filter
+    if (opts.correlationId) where.correlationId = opts.correlationId;
+
+    // Free-text search (search across action, summary, and metadata)
+    if (opts.q) {
+      where.OR = [
+        { type: { contains: opts.q, mode: 'insensitive' } },
+        { summary: { contains: opts.q, mode: 'insensitive' } },
+        { entityId: { contains: opts.q, mode: 'insensitive' } },
+      ];
+    }
 
     // Query with cursor-based pagination
     const items = await this.prisma.auditEvent.findMany({

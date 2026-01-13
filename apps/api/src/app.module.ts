@@ -15,12 +15,20 @@ import { OriginationModule } from "./origination/origination.module";
 import { DocumentsModule } from "./documents/documents.module";
 import { ServicingModule } from "./servicing/servicing.module";
 import { TradingModule } from "./trading/trading.module";
+import { TradingReadinessFactsModule } from "./trading-readiness-facts/trading-readiness-facts.module";
+import { ExplainabilityModule } from "./explainability/explainability.module";
+import { EsgKpiFactsModule } from "./esg-kpi-facts/esg-kpi-facts.module";
+import { CovenantFactsModule } from "./covenant-facts/covenant-facts.module";
+import { PortfolioIntelligenceModule } from "./portfolio-intelligence/portfolio-intelligence.module";
 import { EsgModule } from "./esg/esg.module";
 import { PortfolioModule } from "./portfolio/portfolio.module";
 import { AuditModule } from "./audit/audit.module";
 import { MeModule } from "./me/me.module";
 import { CorrelationIdMiddleware } from "./common/correlation-id.middleware";
 import { UserOrIpThrottlerGuard } from "./security/throttler-user-or-ip.guard";
+import { BullMQRootModule } from "./config/bullmq.config";
+import { AiJobsModule } from "./ai/jobs/ai-jobs.module";
+import { OpsModule } from "./ops/ops.module";
 
 /**
  * Root application module.
@@ -42,6 +50,10 @@ import { UserOrIpThrottlerGuard } from "./security/throttler-user-or-ip.guard";
         limit: 120,  // 120 req/min per identity (user or IP)
       },
     ]),
+    // BullMQ for async job processing (Week 3 - Track B Step B7, Track C Step C1)
+    BullMQRootModule,
+    AiJobsModule,
+    OpsModule, // Week 3 - Track C: Operational Intelligence
     AuthModule,
     TenantModule,
     PrismaModule,
@@ -54,6 +66,11 @@ import { UserOrIpThrottlerGuard } from "./security/throttler-user-or-ip.guard";
     DocumentsModule,
     ServicingModule,
     TradingModule,
+    TradingReadinessFactsModule,
+    ExplainabilityModule,
+    EsgKpiFactsModule,
+    CovenantFactsModule,
+    PortfolioIntelligenceModule,
     EsgModule,
     PortfolioModule,
     MeModule,

@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { PrismaClient, ReadinessBand, TradingItemStatus } from "@prisma/client";
+import { PrismaClient, ReadinessBand, TradingItemStatus, TradingChecklistItem } from "@prisma/client";
 import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
+import * as crypto from "crypto";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -12,7 +13,7 @@ function must(name: string): string {
 const prisma = new PrismaClient();
 const connection = new IORedis(must("REDIS_URL"), { maxRetriesPerRequest: null });
 
-type JobData = { tenantId: string; loanId: string };
+type JobData = { tenantId: string; loanId: string; correlationId?: string };
 
 function bandFor(score: number): ReadinessBand {
   if (score >= 80) return ReadinessBand.GREEN;
@@ -20,11 +21,119 @@ function bandFor(score: number): ReadinessBand {
   return ReadinessBand.RED;
 }
 
+/**
+ * Week 3 - Track A.1: Generate Trading Readiness Fact Snapshot
+ * 
+ * Deterministic fact capture for AI explainability.
+ * This mirrors the logic in trading-fact-snapshot.service.ts but runs in worker context.
+ */
+async function generateTradingFactSnapshot(params: {
+  prisma: PrismaClient;
+  tenantId: string;
+  loanId: string;
+  readinessScore: number;
+  readinessBand: ReadinessBand;
+  checklistItems: TradingChecklistItem[];
+  correlationId?: string;
+}) {
+  const { prisma, tenantId, loanId, readinessScore, readinessBand, checklistItems, correlationId } = params;
+
+  // Gather system state for contributing factors
+  const documentCount = await prisma.document.count({ where: { tenantId, loanId } });
+  const hasVersioning = (await prisma.documentVersion.count({ where: { tenantId } })) > 0;
+  const covenantCount = await prisma.covenant.count({ where: { tenantId, loanId } });
+  const hasScenarios = !!(await prisma.loanScenario.findUnique({ where: { loanId } }));
+  const esgKpiCount = await prisma.eSGKpi.count({ where: { tenantId, loanId } });
+  const auditEventCount = await prisma.auditEvent.count({ where: { tenantId } });
+
+  // Calculate contributing factors (deterministic)
+  const docItems = checklistItems.filter((i) => i.category === 'DOCUMENTS');
+  const docDone = docItems.filter((i) => i.status === 'DONE').length;
+  const documentationCompleteness = docItems.length > 0 ? docDone / docItems.length : 0;
+
+  const servicingItems = checklistItems.filter((i) => i.category === 'SERVICING');
+  const covenantCompliance = servicingItems.every((i) => i.status === 'DONE');
+
+  let amendmentStability: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' = 'NONE';
+  if (!hasVersioning) {
+    amendmentStability = 'NONE';
+  } else if (documentCount < 3) {
+    amendmentStability = 'HIGH';
+  } else if (documentCount < 6) {
+    amendmentStability = 'MEDIUM';
+  } else {
+    amendmentStability = 'LOW';
+  }
+
+  const servicingAlerts = servicingItems.filter(
+    (i) => i.status === 'OPEN' || i.status === 'BLOCKED'
+  ).length;
+
+  const esgItems = checklistItems.filter((i) => i.category === 'ESG');
+  const esgDone = esgItems.filter((i) => i.status === 'DONE').length;
+  const esgDisclosureCoverage = esgItems.length > 0 ? esgDone / esgItems.length : 0;
+
+  const auditTrailCompleteness = auditEventCount > 0;
+
+  const contributingFactors = {
+    documentationCompleteness,
+    covenantCompliance,
+    amendmentStability,
+    servicingAlerts,
+    esgDisclosureCoverage,
+    auditTrailCompleteness,
+  };
+
+  // Identify blocking issues (deterministic)
+  const blockingIssues: string[] = [];
+
+  checklistItems.filter((i) => i.status === 'BLOCKED').forEach((item) => {
+    blockingIssues.push(`Blocked: ${item.title}`);
+  });
+
+  checklistItems.filter((i) => i.status === 'OPEN' && i.weight >= 15).forEach((item) => {
+    blockingIssues.push(`Missing: ${item.title}`);
+  });
+
+  if (documentCount === 0) blockingIssues.push('No documents uploaded');
+  if (covenantCount === 0) blockingIssues.push('No covenants modeled');
+  if (!hasScenarios) blockingIssues.push('Servicing scenarios not configured');
+
+  // Compute fact hash for tamper detection
+  const content = JSON.stringify({
+    loanId,
+    readinessScore,
+    readinessBand,
+    contributingFactors,
+    blockingIssues: blockingIssues.sort(),
+    factVersion: 1,
+  });
+  const factHash = crypto.createHash('sha256').update(content).digest('hex');
+
+  // Store fact snapshot (upsert by hash - immutable)
+  return await prisma.tradingReadinessFactSnapshot.upsert({
+    where: { factHash },
+    update: {}, // Immutable: if hash exists, no update needed
+    create: {
+      tenantId,
+      loanId,
+      readinessScore,
+      readinessBand,
+      contributingFactors,
+      blockingIssues,
+      factVersion: 1,
+      computedBy: 'SYSTEM',
+      factHash,
+      correlationId,
+    },
+  });
+}
+
 export function startTradingRecomputeWorker() {
   new Worker<JobData>(
     "trading.recompute",
     async (job) => {
-      const { tenantId, loanId } = job.data;
+      const { tenantId, loanId, correlationId } = job.data;
 
       const loan = await prisma.loan.findFirst({ where: { id: loanId, tenantId } });
       if (!loan) throw new Error("Loan not found");
@@ -146,6 +255,17 @@ export function startTradingRecomputeWorker() {
         },
       });
 
+      // Week 3 - Track A.1: Generate immutable fact snapshot for AI explainability
+      const factSnapshot = await generateTradingFactSnapshot({
+        prisma,
+        tenantId,
+        loanId,
+        readinessScore: score,
+        readinessBand: band,
+        checklistItems: refreshed,
+        correlationId,
+      });
+
       await prisma.auditEvent.create({
         data: {
           tenantId,
@@ -154,7 +274,14 @@ export function startTradingRecomputeWorker() {
           actorClientId: SERVICE_CLIENT_ID,
           type: "TRADING_READINESS_COMPUTED",
           summary: `Trading readiness computed: ${score} (${band})`,
-          payload: { loanId, score, band, snapshotId: snap.id, reasons },
+          payload: { 
+            loanId, 
+            score, 
+            band, 
+            snapshotId: snap.id, 
+            factSnapshotId: factSnapshot.id,
+            reasons 
+          },
         },
       });
 

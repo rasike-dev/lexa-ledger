@@ -32,6 +32,10 @@ export class AuditController {
    * @param entityType - Filter by entity type (e.g., "Loan", "Document")
    * @param entityId - Filter by specific entity ID
    * @param action - Filter by action type (e.g., "LOAN_CREATED")
+   * @param module - Filter by module (e.g., "TRADING", "DOCUMENTS")
+   * @param actorType - Filter by actor type ("USER" or "SERVICE")
+   * @param correlationId - Filter by correlation ID
+   * @param q - Free-text search across metadata/action/entity fields
    * @param limit - Max items per page (default 50, max 200)
    * @param cursor - Pagination cursor (ID of last item from previous page)
    * 
@@ -51,6 +55,10 @@ export class AuditController {
     @Query('entityType') entityType?: string,
     @Query('entityId') entityId?: string,
     @Query('action') action?: string,
+    @Query('module') module?: string,
+    @Query('actorType') actorType?: 'USER' | 'SERVICE',
+    @Query('correlationId') correlationId?: string,
+    @Query('q') q?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
@@ -60,6 +68,10 @@ export class AuditController {
       entityType,
       entityId,
       action,
+      module,
+      actorType,
+      correlationId,
+      q,
       limit: limit ? Math.min(parseInt(limit, 10), 200) : 50,
       cursor: cursor ?? null,
     });

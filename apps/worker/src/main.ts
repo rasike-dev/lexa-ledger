@@ -5,6 +5,8 @@ import { PrismaClient } from "@prisma/client";
 import { startServicingRecomputeWorker } from "./servicing.recompute";
 import { startTradingRecomputeWorker } from "./trading.recompute";
 import { startEsgVerifyWorker } from "./esg.verify";
+import { startAiExplainWorker } from "./ai-explain.worker";
+import { startOpsWorker } from "./ops.worker";
 import { minioStorage } from "./storage/minioStorage";
 import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
@@ -106,3 +108,9 @@ startTradingRecomputeWorker();
 
 // Start ESG verify worker
 startEsgVerifyWorker(minioStorage);
+
+// Start AI explain worker (Week 3 - Track B Step B7)
+startAiExplainWorker(prisma, connection);
+
+// Start Ops worker (Week 3 - Track C Step C1)
+startOpsWorker(prisma, connection);

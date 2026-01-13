@@ -4,6 +4,8 @@ import { useUIStore } from "../../../app/store/uiStore";
 import { useAuthStore } from "../../../app/store/authStore";
 import { Roles, hasAnyRole } from "../../../auth/roles";
 import { loanPaths } from "../../../app/routes/paths";
+import PageHeader from "../../../components/layout/PageHeader";
+import { DemoDisclaimer } from "../../../components/common";
 
 import { usePortfolio } from "../../portfolio/hooks/usePortfolio";
 import { useServicing, enrichCovenants } from "../../servicing/hooks/useServicing";
@@ -13,6 +15,9 @@ import { useTradingRecompute } from "../../trading/hooks/useTradingRecompute";
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { TradingWhyPanel } from "../../trading/components/TradingWhyPanel";
+import { TradingReadinessWhyDrawer } from "../../../components/trading/TradingReadinessWhyDrawer";
+import { TradingReadinessExplainabilityBadge } from "../../../components/trading/TradingReadinessExplainabilityBadge";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -70,10 +75,18 @@ export function LoanTrading() {
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
   const { roles } = useAuthStore();
+  const [whyDrawerOpen, setWhyDrawerOpen] = React.useState(false);
 
   const canRecompute = hasAnyRole(roles, [
     Roles.TRADING_ANALYST,
     Roles.TENANT_ADMIN,
+  ]);
+
+  const canViewWhy = hasAnyRole(roles, [
+    Roles.TRADING_ANALYST,
+    Roles.TRADING_VIEWER,
+    Roles.TENANT_ADMIN,
+    Roles.COMPLIANCE_AUDITOR,
   ]);
 
   const scenario = useUIStore((s) =>
@@ -200,16 +213,38 @@ export function LoanTrading() {
   }, [demoMode, tradingSummary.data, checklistQ.data, scenario, evidenceCoverage]);
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 8px 0" }}>Trading • Trade Readiness</h1>
-      <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-        Risk-aware automation for secondary trading diligence and readiness scoring.
-      </p>
+    <div className="p-6">
+      <DemoDisclaimer />
+      
+      <PageHeader
+        title="Trading • Trade Readiness"
+        subtitle="Risk-aware automation for secondary trading diligence and readiness scoring"
+        right={
+          !demoMode && canViewWhy && loanId ? (
+            <button
+              onClick={() => setWhyDrawerOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
+            >
+              Why?
+            </button>
+          ) : undefined
+        }
+      />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <LinkChip to={loanPaths.documents(loanId ?? "demo-loan-001")} label="Go to Documents" />
         <LinkChip to={loanPaths.servicing(loanId ?? "demo-loan-001")} label="Go to Servicing" />
       </div>
+
+      {/* Week 3 - Track A.1: Explainability Badge (Live API only) */}
+      {!demoMode && loanId && (
+        <div style={{ marginBottom: 12 }}>
+          <TradingReadinessExplainabilityBadge
+            loanId={loanId}
+            onOpenWhyDrawer={() => setWhyDrawerOpen(true)}
+          />
+        </div>
+      )}
 
       {/* Summary cards */}
       <div
@@ -237,6 +272,19 @@ export function LoanTrading() {
           }
         />
       </div>
+
+      {/* Week 3 - Track A.1: Explainable Trading Readiness (Why Panel) */}
+      {!demoMode && loanId && tradingSummary.data && (
+        <div style={{ marginBottom: 12 }}>
+          <TradingWhyPanel
+            loanId={loanId}
+            readinessScore={scoreModel.score}
+            readinessBand={
+              tradingSummary.data.band as 'GREEN' | 'AMBER' | 'RED'
+            }
+          />
+        </div>
+      )}
 
       {/* Control Panel (live data only) */}
       {!demoMode && tradingSummary.data && (
@@ -487,6 +535,15 @@ export function LoanTrading() {
           />
         </div>
       </div>
+
+      {/* Week 3 - Track A.1: Explainable Trading Readiness Drawer */}
+      {!demoMode && loanId && (
+        <TradingReadinessWhyDrawer
+          loanId={loanId}
+          open={whyDrawerOpen}
+          onClose={() => setWhyDrawerOpen(false)}
+        />
+      )}
     </div>
   );
 }
