@@ -228,7 +228,7 @@ function MetricCard({
       <div className="text-3xl font-bold text-slate-900 mb-2">{value}</div>
 
       {/* Description */}
-      <p className="text-sm text-slate-600 mb-4 min-h-[40px]">{description}</p>
+      <div className="text-sm text-slate-600 mb-4 min-h-[40px]">{description}</div>
 
       {/* Link */}
       <Link
