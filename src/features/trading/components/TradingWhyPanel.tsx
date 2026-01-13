@@ -40,7 +40,7 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
   const { data: explanation, isLoading, error, refetch } = useQuery<ExplanationResponse>({
     queryKey: ['trading-explanation', loanId, verbosity], // audience is derived server-side from roles
     queryFn: async () => {
-      return await httpClient.post(`/api/trading/readiness/${loanId}/explain`, {
+      return await httpClient.post(`/trading/readiness/${loanId}/explain`, {
         verbosity,
       });
     },

@@ -37,7 +37,7 @@ export type ExplainResult = {
  */
 export async function getLatestTradingReadinessFacts(loanId: string) {
   return await httpClient.get<TradingReadinessFactSnapshot>(
-    `/api/trading/readiness/${encodeURIComponent(loanId)}/facts/latest`,
+    `/trading/readiness/${encodeURIComponent(loanId)}/facts/latest`,
   );
 }
 
@@ -46,7 +46,7 @@ export async function getLatestTradingReadinessFacts(loanId: string) {
  */
 export async function recomputeTradingReadinessFacts(loanId: string) {
   return await httpClient.post<TradingReadinessFactSnapshot>(
-    `/api/trading/readiness/${encodeURIComponent(loanId)}/facts/recompute`,
+    `/trading/readiness/${encodeURIComponent(loanId)}/facts/recompute`,
     {},
   );
 }
@@ -61,7 +61,7 @@ export async function explainTradingReadiness(
   verbosity: ExplainVerbosity,
 ) {
   return await httpClient.post<ExplainResult>(
-    `/api/trading/readiness/${encodeURIComponent(loanId)}/explain`,
+    `/trading/readiness/${encodeURIComponent(loanId)}/explain`,
     { verbosity },
   );
 }
