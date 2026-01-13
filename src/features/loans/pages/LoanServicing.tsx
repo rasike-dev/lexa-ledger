@@ -11,6 +11,8 @@ import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { loanPaths } from "../../../app/routes/paths";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import PageHeader from "../../../components/layout/PageHeader";
+import { DemoDisclaimer, EmptyState } from "../../../components/common";
 
 function statusStyle(status: "PASS" | "WARN" | "FAIL") {
   if (status === "PASS") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "PASS" };
@@ -49,10 +51,14 @@ export function LoanServicing() {
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 8px 0" }}>Servicing • Covenants & Obligations</h1>
-      <p style={{ marginTop: 0, color: "rgb(var(--muted))" }}>
-        Monitor covenant health and obligations. Use simulation to preview risk under stress.
-      </p>
+      <PageHeader
+        title="Servicing"
+        subtitle="Monitor covenant health and obligations. Use simulation to preview risk under stress."
+      />
+      
+      <div style={{ marginTop: 16 }}>
+        <DemoDisclaimer />
+      </div>
 
       {/* Scenario Info & Controls */}
       <div
@@ -163,10 +169,16 @@ export function LoanServicing() {
               />
             </div>
 
-            <div
-              style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
-            >
-              {servicing.data.covenants.map((c) => {
+            {servicing.data.covenants.length === 0 ? (
+              <EmptyState
+                title="No covenants found"
+                body="Covenants will appear here once document clauses are processed and covenant monitoring is configured."
+              />
+            ) : (
+              <div
+                style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
+              >
+                {servicing.data.covenants.map((c) => {
                 const s = statusStyle(c.status);
                 const headroom = c.value - c.threshold;
 
@@ -244,11 +256,14 @@ export function LoanServicing() {
                 );
               })}
             </div>
+            )}
 
-            <div style={{ marginTop: 12, fontSize: 12, color: "rgb(var(--muted))" }}>
-              Demo note: Covenant status changes deterministically when switching scenarios. In
-              Phase 3, this will be driven by extracted covenant logic + borrower data feeds.
-            </div>
+            {servicing.data.covenants.length > 0 && (
+              <div style={{ marginTop: 12, fontSize: 12, color: "rgb(var(--muted))" }}>
+                Demo note: Covenant status changes deterministically when switching scenarios. In
+                Phase 3, this will be driven by extracted covenant logic + borrower data feeds.
+              </div>
+            )}
           </div>
 
           {/* Obligations */}
