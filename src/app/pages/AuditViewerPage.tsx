@@ -17,6 +17,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { httpClient } from '@/shared/api/httpClient';
+import { env } from '../config/env';
 
 type AuditEvent = {
   id: string;
@@ -106,7 +107,7 @@ export function AuditViewerPage() {
     });
     // For export, use a large limit
     usp.set('limit', '1000');
-    return `${httpClient.defaults.baseURL}/api/audit/events?${usp.toString()}`;
+    return `${env.apiBaseUrl}/audit/events?${usp.toString()}`;
   }, [params]);
 
   const handleNext = () => {
