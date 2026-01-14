@@ -30,7 +30,7 @@ export function useMeQuery(enabled: boolean) {
   return useQuery<MeResponse>({
     queryKey: ['me'],
     queryFn: async () => {
-      return await httpClient.get('/api/me');
+      return await httpClient.get('/me');
     },
     enabled,
     staleTime: 30_000, // 30 seconds

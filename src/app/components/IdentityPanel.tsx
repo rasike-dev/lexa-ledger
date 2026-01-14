@@ -416,9 +416,6 @@ export function IdentityPanel() {
                 <span>
                   {showServerDetails ? '▾' : '▸'} Server-validated identity
                 </span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 400 }}>
-                  (for demo/support)
-                </span>
               </button>
 
               {showServerDetails && (
