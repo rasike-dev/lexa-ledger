@@ -23,6 +23,7 @@ import {
   useLatestTradingReadinessFacts,
   useRecomputeTradingReadinessFacts,
 } from "../../../queries/useTradingReadinessExplain";
+import { buildTradingReadinessAuditLink } from "../../../utils/auditLink";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -334,6 +335,14 @@ export function LoanTrading() {
     return { items, counts };
   }, [demoMode, tradingSummary.data, checklistQ.data, scenario, evidenceCoverage]);
 
+  const canViewAudit = hasAnyRole(roles, [Roles.COMPLIANCE_AUDITOR, Roles.TENANT_ADMIN]);
+  const canExport = hasAnyRole(roles, [
+    Roles.TRADING_ANALYST,
+    Roles.TRADING_VIEWER,
+    Roles.COMPLIANCE_AUDITOR,
+    Roles.TENANT_ADMIN,
+  ]);
+
   return (
     <div className="p-6">
       <DemoDisclaimer />
@@ -341,12 +350,63 @@ export function LoanTrading() {
       <PageHeader
         title="Trading • Trade Readiness"
         subtitle="Risk-aware automation for secondary trading diligence and readiness scoring"
-        right={undefined}
+        right={
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {canViewAudit && loanId && (
+              <NavLink
+                to={buildTradingReadinessAuditLink({ loanId })}
+                style={{
+                  textDecoration: "none",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--card))",
+                  color: "rgb(var(--foreground))",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span>📋</span>
+                View Audit
+              </NavLink>
+            )}
+            {canExport && loanId && (
+              <button
+                onClick={() => navigate(loanPaths.tradingReport(loanId))}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid rgb(var(--border))",
+                  background: "rgb(var(--primary))",
+                  color: "white",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span>📄</span>
+                Export Report
+              </button>
+            )}
+          </div>
+        }
       />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <LinkChip to={loanPaths.documents(loanId ?? "demo-loan-001")} label="Go to Documents" />
         <LinkChip to={loanPaths.servicing(loanId ?? "demo-loan-001")} label="Go to Servicing" />
+        {canViewAudit && loanId && (
+          <LinkChip
+            to={buildTradingReadinessAuditLink({ loanId })}
+            label="View Audit Trail"
+          />
+        )}
       </div>
 
 
@@ -619,6 +679,7 @@ export function LoanTrading() {
                 color: "white",
                 border: "none",
                 fontWeight: 900,
+                cursor: "pointer",
               }}
             >
               Export diligence snapshot (print/PDF)
