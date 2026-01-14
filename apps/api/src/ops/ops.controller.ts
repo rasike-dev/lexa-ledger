@@ -57,25 +57,26 @@ export class OpsController {
   @Get('summary')
   @Roles('TENANT_ADMIN', 'COMPLIANCE_AUDITOR')
   async getOperationalSummary() {
-    // For development testing: get tenant ID from context or use first tenant
-    let tenantId: string;
     try {
-      tenantId = this.tenantContext.tenantId;
-    } catch (err) {
-      // Fallback for development when @Public() bypasses auth
-      const firstTenant = await this.prisma.tenant.findFirst({
-        select: { id: true },
-      });
-      if (!firstTenant) {
-        throw new Error('No tenants found in database. Please run seed script.');
+      // For development testing: get tenant ID from context or use first tenant
+      let tenantId: string;
+      try {
+        tenantId = this.tenantContext.tenantId;
+      } catch (err) {
+        // Fallback for development when @Public() bypasses auth
+        const firstTenant = await this.prisma.tenant.findFirst({
+          select: { id: true },
+        });
+        if (!firstTenant) {
+          throw new Error('No tenants found in database. Please run seed script.');
+        }
+        tenantId = firstTenant.id;
       }
-      tenantId = firstTenant.id;
-    }
 
-    // Run with tenant context for Prisma queries
-    return tenantALS.run(
-      { tenantId, userId: 'SYSTEM', roles: ['TENANT_ADMIN'] },
-      async () => {
+      // Run with tenant context for Prisma queries
+      return await tenantALS.run(
+        { tenantId, userId: 'SYSTEM', roles: ['TENANT_ADMIN'] },
+        async () => {
         const now = new Date();
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -130,36 +131,46 @@ export class OpsController {
 
     // 4) Stale explanations (approximate, demo entities only)
     // Demo-safe: Check top 5 loans for staleness
-    const demoLoans = await this.prisma.loan.findMany({
-      where: { tenantId },
-      take: 5,
-      orderBy: { updatedAt: 'desc' },
-      select: { id: true },
-    });
-
     let staleNow = 0;
-
-    // For each demo loan, check if trading readiness explanation is stale
-    for (const loan of demoLoans) {
-      const latestFact = await this.prisma.tradingReadinessFactSnapshot.findFirst({
-        where: { tenantId, loanId: loan.id },
-        orderBy: { computedAt: 'desc' },
-        select: { factHash: true },
+    try {
+      const demoLoans = await this.prisma.loan.findMany({
+        where: { tenantId },
+        take: 5,
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true },
       });
 
-      const latestExplanation = await this.prisma.tradingReadinessExplanation.findFirst({
-        where: { tenantId, loanId: loan.id },
-        orderBy: { createdAt: 'desc' },
-        select: { factHash: true },
-      });
+      // For each demo loan, check if trading readiness explanation is stale
+      for (const loan of demoLoans) {
+        try {
+          const latestFact = await this.prisma.tradingReadinessFactSnapshot.findFirst({
+            where: { tenantId, loanId: loan.id },
+            orderBy: { computedAt: 'desc' },
+            select: { factHash: true },
+          });
 
-      if (
-        latestFact &&
-        latestExplanation &&
-        latestFact.factHash !== latestExplanation.factHash
-      ) {
-        staleNow++;
+          const latestExplanation = await this.prisma.tradingReadinessExplanation.findFirst({
+            where: { tenantId, loanId: loan.id },
+            orderBy: { createdAt: 'desc' },
+            select: { factHash: true },
+          });
+
+          if (
+            latestFact &&
+            latestExplanation &&
+            latestFact.factHash !== latestExplanation.factHash
+          ) {
+            staleNow++;
+          }
+        } catch (err) {
+          // Skip this loan if there's an error (e.g., table doesn't exist yet)
+          console.warn(`Error checking staleness for loan ${loan.id}:`, err);
+        }
       }
+    } catch (err) {
+      // If the tables don't exist yet, just return 0 for stale count
+      console.warn('Error checking stale explanations (tables may not exist yet):', err);
+      staleNow = 0;
     }
 
     // 5) Generate deep links to Audit Viewer
@@ -171,15 +182,19 @@ export class OpsController {
       auditStale: `${baseUrl}?module=TRADING&action=EXPLAIN_GENERATED`, // Link to explanation events
     };
 
-        return {
-          lastRefresh,
-          drift24h,
-          staleNow,
-          ai24h,
-          links,
-        };
-      },
-    ); // end tenantALS.run()
+          return {
+            lastRefresh,
+            drift24h,
+            staleNow,
+            ai24h,
+            links,
+          };
+        },
+      ); // end tenantALS.run()
+    } catch (error) {
+      console.error('Error in getOperationalSummary:', error);
+      throw error;
+    }
   }
 
   /**
