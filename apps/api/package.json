@@ -10,10 +10,16 @@
     "test": "jest",
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:loans": "tsx prisma/seed-loans.ts",
     "seed:servicing": "tsx prisma/seed.servicing.ts",
     "seed:trading": "tsx prisma/seed.trading.ts",
     "seed:esg": "tsx prisma/seed.esg.ts",
-    "seed:clauses": "tsx prisma/seed-clauses.ts"
+    "seed:clauses": "tsx prisma/seed-clauses.ts",
+    "seed:esg-evidence": "tsx prisma/seed-esg-evidence.ts",
+    "seed:audit": "tsx prisma/seed-audit-events.ts",
+    "seed:cleanup": "tsx prisma/cleanup-seed.ts",
+    "seed:all": "tsx prisma/cleanup-seed.ts && tsx prisma/seed-loans.ts && tsx prisma/seed.servicing.ts && tsx prisma/seed.trading.ts && tsx prisma/seed.esg.ts && tsx prisma/seed-clauses.ts && tsx prisma/seed-esg-evidence.ts && tsx prisma/seed-audit-events.ts",
+    "seed:validate": "tsx prisma/validate-seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.965.0",

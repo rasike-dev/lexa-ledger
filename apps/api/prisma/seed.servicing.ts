@@ -1,4 +1,4 @@
-import { PrismaClient, ScenarioMode, CovenantStatus } from "@prisma/client";
+import { PrismaClient, ScenarioMode, CovenantTestStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -60,7 +60,7 @@ async function main() {
           covenantId: dscr.id,
           scenario: ScenarioMode.BASE,
           value: 1.32,
-          status: CovenantStatus.PASS,
+          status: CovenantTestStatus.PASS,
           notes: "Base case meets threshold",
         },
         {
@@ -69,7 +69,7 @@ async function main() {
           covenantId: dscr.id,
           scenario: ScenarioMode.STRESS,
           value: 1.10,
-          status: CovenantStatus.FAIL,
+          status: CovenantTestStatus.FAIL,
           notes: "Stress case breaches DSCR",
         },
         {
@@ -78,7 +78,7 @@ async function main() {
           covenantId: liquidity.id,
           scenario: ScenarioMode.BASE,
           value: 24000000,
-          status: CovenantStatus.PASS,
+          status: CovenantTestStatus.PASS,
           notes: "Base liquidity healthy",
         },
         {
@@ -87,7 +87,7 @@ async function main() {
           covenantId: liquidity.id,
           scenario: ScenarioMode.STRESS,
           value: 18000000,
-          status: CovenantStatus.FAIL,
+          status: CovenantTestStatus.FAIL,
           notes: "Stress liquidity below minimum",
         },
       ],

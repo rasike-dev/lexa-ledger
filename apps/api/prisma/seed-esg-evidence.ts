@@ -55,7 +55,7 @@ async function main() {
           verificationStatus =
             loan.id === "ACME-TERM-001"
               ? ESGVerificationStatus.VERIFIED
-              : loan.id === "ACME-REV-004"
+              : loan.id === "ACME-TERM-004"
                 ? ESGVerificationStatus.NEEDS_REVIEW
                 : ESGVerificationStatus.PENDING;
           break;

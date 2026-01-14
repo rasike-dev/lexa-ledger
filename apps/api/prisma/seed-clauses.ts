@@ -10,11 +10,14 @@ async function main() {
   const tenant = await prisma.tenant.findFirst();
   if (!tenant) throw new Error("No tenant found");
 
-  // Get all loans for the tenant (process all loans, or specifically target first 5)
+  // Get the 5 specific ACME loans we want to seed
+  const targetLoanIds = ["ACME-TERM-001", "ACME-TERM-002", "ACME-TERM-003", "ACME-TERM-004", "ACME-GREEN-005"];
   const allLoans = await prisma.loan.findMany({
-    where: { tenantId: tenant.id },
-    orderBy: { createdAt: "asc" },
-    take: 5, // First 5 loans
+    where: {
+      tenantId: tenant.id,
+      id: { in: targetLoanIds },
+    },
+    orderBy: { id: "asc" },
   });
 
   if (allLoans.length === 0) {

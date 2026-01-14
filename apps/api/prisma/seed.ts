@@ -2,16 +2,24 @@ import { PrismaClient, UserRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const TENANT_ID = "acme-capital-001";
+
 async function main() {
-  // 1) Create or get Tenant
-  let tenant = await prisma.tenant.findFirst({
-    where: { name: "LEXA Demo Tenant" },
+  // 1) Create or get Tenant with consistent ID
+  let tenant = await prisma.tenant.findUnique({
+    where: { id: TENANT_ID },
   });
   
   if (!tenant) {
     tenant = await prisma.tenant.create({
-      data: { name: "LEXA Demo Tenant" },
+      data: {
+        id: TENANT_ID,
+        name: "ACME Capital",
+      },
     });
+    console.log(`✅ Created tenant: ${TENANT_ID}`);
+  } else {
+    console.log(`✓ Tenant ${TENANT_ID} already exists`);
   }
 
   // 2) Create or get Dev User
@@ -28,8 +36,34 @@ async function main() {
     create: { tenantId: tenant.id, userId: user.id, role: UserRole.ORG_ADMIN },
   });
 
-  // 4) Create demo loan (stable ID for frontend)
+  // 4) Create demo loan (stable ID for frontend - also creates ACME-TERM-001 for compatibility)
   const loan = await prisma.loan.upsert({
+    where: { id: "ACME-TERM-001" },
+    update: {
+      tenantId: tenant.id,
+      borrower: "Acme Manufacturing Ltd",
+      agentBank: "Example Agent Bank",
+      currency: "USD",
+      facilityAmount: BigInt(250_000_000),
+      marginBps: 325,
+      status: "Active",
+      lastUpdatedAt: new Date(),
+    },
+    create: {
+      id: "ACME-TERM-001",
+      tenantId: tenant.id,
+      borrower: "Acme Manufacturing Ltd",
+      agentBank: "Example Agent Bank",
+      currency: "USD",
+      facilityAmount: BigInt(250_000_000),
+      marginBps: 325,
+      status: "Active",
+      lastUpdatedAt: new Date(),
+    },
+  });
+  
+  // Also create demo-loan-001 as alias for backward compatibility
+  await prisma.loan.upsert({
     where: { id: "demo-loan-001" },
     update: {
       tenantId: tenant.id,
