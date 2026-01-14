@@ -64,17 +64,29 @@ pnpm tauri dev
 ### Demo Credentials
 
 ```bash
-# Tenant Admin (full access)
-Username: rasike
-Password: rasike
+# 1. Tenant Administrator (Full Access)
+Name: Alex Morgan
+Email: alex.morgan@acmecapital.com
+Username: user-alex-001
+Password: Demo2026!
+Role: TENANT_ADMIN
+Access: Full system access - can upload docs, manage loans, verify ESG, export audit, recompute trading scores
 
-# Compliance Auditor (read-only)
-Username: auditor
-Password: auditor
+# 2. Trading Analyst (Operational Access)
+Name: Jamie Lee
+Email: jamie.lee@acmecapital.com
+Username: user-jamie-001
+Password: Demo2026!
+Role: TRADING_ANALYST
+Access: Trading-focused access - can view trading readiness, generate explanations, analyze portfolio trading metrics
 
-# Different Tenant (isolation demo)
-Username: testuser
-Password: testuser
+# 3. Compliance Auditor (Read-Only)
+Name: Priya Shah
+Email: priya.shah@acmecapital.com
+Username: user-priya-001
+Password: Demo2026!
+Role: COMPLIANCE_AUDITOR
+Access: Read-only access - can view and export audit trails, compliance reports, but mutations blocked (403)
 ```
 
 ---
