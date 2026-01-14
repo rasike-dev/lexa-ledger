@@ -20,7 +20,8 @@ import {
   DollarSign,
   RefreshCw,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import PageHeader from '../../components/layout/PageHeader';
@@ -42,13 +43,33 @@ export function OperationalIntelligence() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-64 bg-slate-200 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-48 bg-slate-200 rounded-lg"></div>
-            ))}
+      <div style={{ padding: '32px', minHeight: '100vh', background: 'rgb(var(--background))' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '24px',
+            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          }}>
+            <div style={{ height: '40px', width: '320px', background: 'rgb(var(--muted))', borderRadius: '8px', opacity: 0.3 }}></div>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+              gap: '24px' 
+            }}>
+              {[1, 2, 3, 4].map((i) => (
+                <div 
+                  key={i} 
+                  style={{ 
+                    height: '240px', 
+                    background: 'rgb(var(--card))', 
+                    borderRadius: '12px',
+                    border: '1px solid rgb(var(--border))',
+                    opacity: 0.3
+                  }}
+                ></div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -57,10 +78,25 @@ export function OperationalIntelligence() {
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h2 className="text-red-800 font-semibold mb-2">Failed to load operational summary</h2>
-          <p className="text-red-600 text-sm">{error.message}</p>
+      <div style={{ padding: '32px', minHeight: '100vh', background: 'rgb(var(--background))' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+            border: '1px solid #fecaca',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          }}>
+            <h2 style={{ 
+              color: '#991b1b', 
+              fontWeight: 600, 
+              fontSize: '18px',
+              marginBottom: '8px'
+            }}>
+              Failed to load operational summary
+            </h2>
+            <p style={{ color: '#dc2626', fontSize: '14px' }}>{error.message}</p>
+          </div>
         </div>
       </div>
     );
@@ -69,111 +105,161 @@ export function OperationalIntelligence() {
   if (!data) return null;
 
   return (
-    <div className="p-8 space-y-6">
-      <DemoDisclaimer />
-      
-      <PageHeader
-        title="Operational Intelligence"
-        subtitle="System health monitoring • Auto-refreshes every 60 seconds"
-        right={
-          <div className="flex items-center gap-2 text-sm text-slate-500 px-3 py-2 rounded-lg bg-slate-50">
-            <RefreshCw className="w-4 h-4 animate-spin-slow" />
-            Live monitoring
+    <div style={{ 
+      padding: '32px', 
+      minHeight: '100vh', 
+      background: 'rgb(var(--background))' 
+    }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <DemoDisclaimer />
+          
+          <PageHeader
+            title="Operational Intelligence"
+            subtitle="System health monitoring • Auto-refreshes every 60 seconds"
+            right={
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+                color: 'rgb(var(--muted-foreground))',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                background: 'rgb(var(--card))',
+                border: '1px solid rgb(var(--border))',
+                fontWeight: 500
+              }}>
+                <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 3s linear infinite' }} />
+                Live monitoring
+              </div>
+            }
+          />
+
+          {/* Metrics Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '24px'
+          }}>
+            {/* Card 1: Last Refresh */}
+            <MetricCard
+              icon={<Clock style={{ width: '24px', height: '24px' }} />}
+              title="Last Refresh"
+              value={
+                data.lastRefresh
+                  ? formatDistanceToNow(new Date(data.lastRefresh.completedAt), {
+                      addSuffix: true,
+                    })
+                  : 'Never'
+              }
+              description={
+                data.lastRefresh
+                  ? `Job ID: ${data.lastRefresh.jobId.substring(0, 8)}...`
+                  : 'No scheduled refresh has completed yet'
+              }
+              linkTo={data.links.auditOps}
+              linkLabel="View OPS runs"
+              statusColor="blue"
+            />
+
+            {/* Card 2: Drift Events (24h) */}
+            <MetricCard
+              icon={<TrendingUp style={{ width: '24px', height: '24px' }} />}
+              title="Drift Events (24h)"
+              value={data.drift24h.toString()}
+              description={
+                data.drift24h === 0
+                  ? 'No facts changed in last 24h'
+                  : data.drift24h === 1
+                  ? '1 fact changed, explanation updated'
+                  : `${data.drift24h} facts changed, explanations updated`
+              }
+              linkTo={data.links.auditDrift}
+              linkLabel="View drift events"
+              statusColor={data.drift24h > 0 ? 'green' : 'slate'}
+            />
+
+            {/* Card 3: Stale Explanations */}
+            <MetricCard
+              icon={data.staleNow > 0 ? <AlertTriangle style={{ width: '24px', height: '24px' }} /> : <CheckCircle2 style={{ width: '24px', height: '24px' }} />}
+              title="Stale Explanations"
+              value={data.staleNow.toString()}
+              description={
+                data.staleNow === 0
+                  ? 'All explanations are up-to-date'
+                  : data.staleNow === 1
+                  ? '1 explanation needs recompute'
+                  : `${data.staleNow} explanations need recompute`
+              }
+              linkTo={data.links.auditStale}
+              linkLabel="View explanations"
+              statusColor={data.staleNow > 0 ? 'amber' : 'green'}
+            />
+
+            {/* Card 4: AI Usage (24h) */}
+            <MetricCard
+              icon={<Activity style={{ width: '24px', height: '24px' }} />}
+              title="AI Usage (24h)"
+              value={`${data.ai24h.calls} calls`}
+              description={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <DollarSign style={{ width: '16px', height: '16px' }} />
+                  <span>
+                    {data.ai24h.costUsd.toFixed(4)} USD estimated cost
+                  </span>
+                </div>
+              }
+              linkTo={data.links.auditAi}
+              linkLabel="View AI calls"
+              statusColor="purple"
+            />
           </div>
-        }
-      />
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Last Refresh */}
-        <MetricCard
-          icon={<Clock className="w-6 h-6 text-blue-600" />}
-          title="Last Refresh"
-          value={
-            data.lastRefresh
-              ? formatDistanceToNow(new Date(data.lastRefresh.completedAt), {
-                  addSuffix: true,
-                })
-              : 'Never'
-          }
-          description={
-            data.lastRefresh
-              ? `Job ID: ${data.lastRefresh.jobId.substring(0, 8)}...`
-              : 'No scheduled refresh has completed yet'
-          }
-          linkTo={data.links.auditOps}
-          linkLabel="View OPS runs"
-          statusColor="blue"
-        />
-
-        {/* Card 2: Drift Events (24h) */}
-        <MetricCard
-          icon={<TrendingUp className="w-6 h-6 text-green-600" />}
-          title="Drift Events (24h)"
-          value={data.drift24h.toString()}
-          description={
-            data.drift24h === 0
-              ? 'No facts changed in last 24h'
-              : data.drift24h === 1
-              ? '1 fact changed, explanation updated'
-              : `${data.drift24h} facts changed, explanations updated`
-          }
-          linkTo={data.links.auditDrift}
-          linkLabel="View drift events"
-          statusColor={data.drift24h > 0 ? 'green' : 'slate'}
-        />
-
-        {/* Card 3: Stale Explanations */}
-        <MetricCard
-          icon={<AlertTriangle className="w-6 h-6 text-amber-600" />}
-          title="Stale Explanations"
-          value={data.staleNow.toString()}
-          description={
-            data.staleNow === 0
-              ? 'All explanations are up-to-date'
-              : data.staleNow === 1
-              ? '1 explanation needs recompute'
-              : `${data.staleNow} explanations need recompute`
-          }
-          linkTo={data.links.auditStale}
-          linkLabel="View explanations"
-          statusColor={data.staleNow > 0 ? 'amber' : 'green'}
-        />
-
-        {/* Card 4: AI Usage (24h) */}
-        <MetricCard
-          icon={<Activity className="w-6 h-6 text-purple-600" />}
-          title="AI Usage (24h)"
-          value={`${data.ai24h.calls} calls`}
-          description={
-            <div className="flex items-center gap-1">
-              <DollarSign className="w-4 h-4" />
-              <span>
-                {data.ai24h.costUsd.toFixed(4)} USD estimated cost
-              </span>
+          {/* Info Banner */}
+          <div style={{
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            border: '1px solid #bfdbfe',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+              <div style={{
+                flexShrink: 0,
+                width: '48px',
+                height: '48px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
+              }}>
+                <Activity style={{ width: '24px', height: '24px', color: 'white' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{
+                  fontWeight: 600,
+                  fontSize: '16px',
+                  color: '#1e40af',
+                  marginBottom: '8px',
+                  letterSpacing: '-0.01em'
+                }}>
+                  Self-Healing System
+                </h3>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#1e3a8a',
+                  lineHeight: '1.6',
+                  margin: 0
+                }}>
+                  This platform automatically detects changes, recomputes affected facts, and updates
+                  explanations. Every operation is audited for compliance. Click "View in Audit" on
+                  any card to see the complete trail.
+                </p>
+              </div>
             </div>
-          }
-          linkTo={data.links.auditAi}
-          linkLabel="View AI calls"
-          statusColor="purple"
-        />
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <Activity className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-blue-900 mb-1">
-              Self-Healing System
-            </h3>
-            <p className="text-sm text-blue-800">
-              This platform automatically detects changes, recomputes affected facts, and updates
-              explanations. Every operation is audited for compliance. Click "View in Audit" on
-              any card to see the complete trail.
-            </p>
           </div>
         </div>
       </div>
@@ -208,35 +294,167 @@ function MetricCard({
   linkLabel: string;
   statusColor: 'blue' | 'green' | 'amber' | 'purple' | 'slate';
 }) {
-  const colorClasses = {
-    blue: 'bg-blue-50 border-blue-200',
-    green: 'bg-green-50 border-green-200',
-    amber: 'bg-amber-50 border-amber-200',
-    purple: 'bg-purple-50 border-purple-200',
-    slate: 'bg-slate-50 border-slate-200',
+  const colorConfig = {
+    blue: {
+      bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+      border: '#bfdbfe',
+      iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      iconColor: '#1d4ed8',
+      valueColor: '#1e3a8a',
+      linkColor: '#2563eb',
+      linkHover: '#1d4ed8',
+      shadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -2px rgba(59, 130, 246, 0.1)'
+    },
+    green: {
+      bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+      border: '#bbf7d0',
+      iconBg: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+      iconColor: '#15803d',
+      valueColor: '#166534',
+      linkColor: '#16a34a',
+      linkHover: '#15803d',
+      shadow: '0 4px 6px -1px rgba(34, 197, 94, 0.1), 0 2px 4px -2px rgba(34, 197, 94, 0.1)'
+    },
+    amber: {
+      bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+      border: '#fde68a',
+      iconBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      iconColor: '#b45309',
+      valueColor: '#92400e',
+      linkColor: '#d97706',
+      linkHover: '#b45309',
+      shadow: '0 4px 6px -1px rgba(245, 158, 11, 0.1), 0 2px 4px -2px rgba(245, 158, 11, 0.1)'
+    },
+    purple: {
+      bg: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
+      border: '#e9d5ff',
+      iconBg: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)',
+      iconColor: '#7e22ce',
+      valueColor: '#6b21a8',
+      linkColor: '#9333ea',
+      linkHover: '#7e22ce',
+      shadow: '0 4px 6px -1px rgba(168, 85, 247, 0.1), 0 2px 4px -2px rgba(168, 85, 247, 0.1)'
+    },
+    slate: {
+      bg: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+      border: '#cbd5e1',
+      iconBg: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+      iconColor: '#334155',
+      valueColor: '#1e293b',
+      linkColor: '#475569',
+      linkHover: '#334155',
+      shadow: '0 4px 6px -1px rgba(100, 116, 139, 0.1), 0 2px 4px -2px rgba(100, 116, 139, 0.1)'
+    },
   };
 
+  const config = colorConfig[statusColor];
+
   return (
-    <div className={`border rounded-lg p-6 ${colorClasses[statusColor]} hover:shadow-md transition-shadow`}>
+    <div
+      style={{
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+        borderRadius: '16px',
+        padding: '24px',
+        boxShadow: config.shadow,
+        transition: 'all 0.2s ease-in-out',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = config.shadow;
+      }}
+    >
+      {/* Decorative corner accent */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '120px',
+        height: '120px',
+        background: `radial-gradient(circle at top right, ${config.border}20, transparent 70%)`,
+        pointerEvents: 'none'
+      }} />
+
       {/* Icon */}
-      <div className="mb-4">{icon}</div>
+      <div style={{
+        width: '56px',
+        height: '56px',
+        borderRadius: '12px',
+        background: config.iconBg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '20px',
+        boxShadow: `0 4px 6px -1px ${config.iconColor}30`,
+        color: 'white'
+      }}>
+        {icon}
+      </div>
 
       {/* Title */}
-      <h3 className="text-sm font-medium text-slate-600 mb-2">{title}</h3>
+      <h3 style={{
+        fontSize: '13px',
+        fontWeight: 600,
+        color: 'rgb(var(--muted-foreground))',
+        marginBottom: '12px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em'
+      }}>
+        {title}
+      </h3>
 
       {/* Value */}
-      <div className="text-3xl font-bold text-slate-900 mb-2">{value}</div>
+      <div style={{
+        fontSize: '36px',
+        fontWeight: 700,
+        color: config.valueColor,
+        marginBottom: '12px',
+        lineHeight: 1.2,
+        letterSpacing: '-0.02em'
+      }}>
+        {value}
+      </div>
 
       {/* Description */}
-      <div className="text-sm text-slate-600 mb-4 min-h-[40px]">{description}</div>
+      <div style={{
+        fontSize: '14px',
+        color: 'rgb(var(--muted-foreground))',
+        marginBottom: '20px',
+        minHeight: '44px',
+        lineHeight: '1.5'
+      }}>
+        {description}
+      </div>
 
       {/* Link */}
       <Link
         to={linkTo}
-        className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '14px',
+          fontWeight: 600,
+          color: config.linkColor,
+          textDecoration: 'none',
+          transition: 'color 0.2s ease-in-out',
+          padding: '8px 0'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = config.linkHover;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = config.linkColor;
+        }}
       >
         {linkLabel}
-        <ExternalLink className="w-4 h-4" />
+        <ExternalLink style={{ width: '16px', height: '16px' }} />
       </Link>
     </div>
   );
