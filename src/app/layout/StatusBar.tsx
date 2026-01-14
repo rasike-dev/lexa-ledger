@@ -21,7 +21,7 @@ export function StatusBar() {
       }}
     >
       <div>
-        {t("status.dataset")}: {dataset.toUpperCase()}
+        {t("status.environment")}: Production
       </div>
       <div>
         {t("status.lastExtraction")}:{" "}

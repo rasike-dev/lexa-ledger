@@ -82,40 +82,43 @@ export function ExplainabilityDrawer({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-white shadow-xl">
+      <div className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
-            <div className="text-lg font-semibold">{title}</div>
-            {subtitle && <div className="text-sm text-gray-500">{subtitle}</div>}
+            <div className="text-xl font-semibold text-slate-900">{title}</div>
+            {subtitle && <div className="mt-1 text-sm text-slate-500">{subtitle}</div>}
           </div>
-          <button className="rounded px-3 py-1 text-sm hover:bg-gray-100" onClick={onClose}>
+          <button 
+            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors" 
+            onClick={onClose}
+          >
             Close
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="space-y-6 p-6 bg-slate-50">
           {/* Facts Panel */}
-          <div className="rounded border p-3">
-            <div className="flex items-start justify-between gap-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-gray-500">{factsTitle}</div>
-                <div className="mt-1 text-sm">{factsSummary ?? "—"}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">{factsTitle}</div>
+                <div className="text-sm text-slate-900 leading-relaxed">{factsSummary ?? "—"}</div>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 shrink-0">
                 {canRecompute && onRecompute && (
                   <button
-                    className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     onClick={() => void onRecompute()}
                   >
                     {recomputeLabel}
                   </button>
                 )}
                 <button
-                  className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   onClick={() => setShowFacts((v) => !v)}
                   disabled={!factsJson}
                 >
@@ -125,24 +128,27 @@ export function ExplainabilityDrawer({
             </div>
 
             {showFacts && factsJson && (
-              <div className="mt-3 border-t pt-3">
+              <div className="mt-4 border-t border-slate-200 pt-4">
                 {blockingIssues && blockingIssues.length > 0 && (
                   <>
-                    <div className="text-xs font-semibold text-gray-600">Blocking Issues</div>
-                    <ul className="mt-1 list-disc pl-5 text-sm">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-2">Blocking Issues</div>
+                    <ul className="mt-2 space-y-1.5 list-none pl-0">
                       {blockingIssues.map((b, i) => (
-                        <li key={i}>{b}</li>
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                          <span>{b}</span>
+                        </li>
                       ))}
                     </ul>
-                    <div className="mt-3 text-xs font-semibold text-gray-600">Facts</div>
+                    <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-600 mb-2">Raw Facts Data</div>
                   </>
                 )}
 
                 {(!blockingIssues || blockingIssues.length === 0) && (
-                  <div className="text-xs font-semibold text-gray-600">Facts</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-2">Raw Facts Data</div>
                 )}
 
-                <pre className="mt-1 max-h-60 overflow-auto rounded bg-gray-50 p-2 text-xs">
+                <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-50 border border-slate-200 p-4 text-xs font-mono text-slate-700 leading-relaxed">
                   {JSON.stringify(factsJson, null, 2)}
                 </pre>
               </div>
@@ -150,11 +156,11 @@ export function ExplainabilityDrawer({
           </div>
 
           {/* Controls */}
-          <div className="flex items-center justify-between rounded border p-3">
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-600">Verbosity</div>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-slate-700">Verbosity</label>
               <select
-                className="rounded border px-2 py-1 text-sm"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 bg-white hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-colors"
                 value={verbosity}
                 onChange={(e) => setVerbosity(e.target.value as ExplainVerbosity)}
               >
@@ -165,16 +171,16 @@ export function ExplainabilityDrawer({
             </div>
 
             <button
-              className="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               onClick={() => void onExplain()}
               disabled={!canExplain || !!explaining}
             >
-              {explaining ? "Explaining…" : "Explain"}
+              {explaining ? "Generating…" : "Explain"}
             </button>
           </div>
 
           {/* Output */}
-          <div className="rounded border">
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <ExplainDrawerState
               title="Explanation"
               isLoading={explaining}
@@ -185,60 +191,91 @@ export function ExplainabilityDrawer({
               onRetry={onExplain}
             >
               {result && (
-                <div className="p-3">
-                  <div className="text-sm font-semibold mb-2">Explanation</div>
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      <div className="text-xs text-gray-500">Summary</div>
-                      <div>{result.summary}</div>
+                <div className="p-6 space-y-6">
+                  {/* Summary */}
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Executive Summary</div>
+                    <div className="text-sm text-slate-900 leading-relaxed bg-slate-50 rounded-lg p-4 border border-slate-200">
+                      {result.summary}
                     </div>
+                  </div>
 
-                    <div className="text-sm">
-                      <div className="text-xs text-gray-500">Reasoning</div>
-                      <ul className="mt-1 list-disc pl-5">
+                  {/* Key Factors */}
+                  {result.explanation && result.explanation.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Key Contributing Factors</div>
+                      <ul className="space-y-2.5 list-none pl-0">
                         {(result.explanation ?? []).map((x, i) => (
-                          <li key={i}>{x}</li>
+                          <li key={i} className="flex items-start gap-3 text-sm text-slate-700 leading-relaxed">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                            <span>{x}</span>
+                          </li>
                         ))}
                       </ul>
                     </div>
+                  )}
 
-                    <div className="text-sm">
-                      <div className="text-xs text-gray-500">Recommendations</div>
-                      <ul className="mt-1 list-disc pl-5">
-                        {(result.recommendations ?? []).map((x, i) => (
-                          <li key={i}>{x}</li>
+                  {/* Recommendations */}
+                  {result.recommendations && result.recommendations.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Recommended Actions</div>
+                      <div className="space-y-2.5">
+                        {result.recommendations.map((x, i) => (
+                          <div
+                            key={i}
+                            className="flex items-start gap-3 p-3.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100"
+                          >
+                            <div className="flex-shrink-0 w-6 h-6 rounded-md bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                              {i + 1}
+                            </div>
+                            <div className="text-sm text-slate-900 leading-relaxed flex-1">{x}</div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
+                  )}
 
-                    <div className="text-xs text-gray-500">
-                      {result.confidence && (
-                        <>
-                          Confidence: <span className="font-medium">{result.confidence}</span>
-                        </>
-                      )}
-                      {result.version !== undefined && (
-                        <>
-                          {" "}
-                          • Version: <span className="font-medium">{result.version}</span>
-                        </>
-                      )}
-                    </div>
+                  {/* Metadata & Actions */}
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-xs text-slate-600">
+                        {result.confidence && (
+                          <div>
+                            <span className="font-medium text-slate-700">Confidence:</span>{" "}
+                            <span className={`font-semibold ${
+                              result.confidence === 'HIGH' ? 'text-green-600' :
+                              result.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                            }`}>
+                              {result.confidence}
+                            </span>
+                          </div>
+                        )}
+                        {result.version !== undefined && (
+                          <div>
+                            <span className="font-medium text-slate-700">Version:</span>{" "}
+                            <span className="font-semibold text-slate-900">{result.version}</span>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex gap-2">
-                      {onCopyResult && (
-                        <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={onCopyResult}>
-                          Copy
-                        </button>
-                      )}
-                      {onViewAuditTrail && (
-                        <button
-                          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-                          onClick={onViewAuditTrail}
-                        >
-                          View Audit Trail
-                        </button>
-                      )}
+                      <div className="flex gap-2">
+                        {onCopyResult && (
+                          <button 
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors" 
+                            onClick={onCopyResult}
+                          >
+                            Copy
+                          </button>
+                        )}
+                        {onViewAuditTrail && (
+                          <button
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                            onClick={onViewAuditTrail}
+                          >
+                            View Audit Trail
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -248,8 +285,10 @@ export function ExplainabilityDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t p-4 text-xs text-gray-500">
-          Explanations are generated from deterministic fact snapshots and recorded in Audit.
+        <div className="sticky bottom-0 border-t border-slate-200 bg-slate-50 px-6 py-3">
+          <div className="text-xs text-slate-500 text-center">
+            Explanations are generated from deterministic fact snapshots and recorded in Audit.
+          </div>
         </div>
       </div>
     </div>

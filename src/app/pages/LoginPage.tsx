@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { decodeJwt } from '../config/keycloak';
+import { featureFlags } from '../config/featureFlags';
 
 /**
  * Step A1 — Login Page
@@ -14,8 +15,9 @@ import { decodeJwt } from '../config/keycloak';
  * - "Switch user" workflow explanation
  */
 
-// Only show demo accounts in development or when VITE_DEMO_MODE is enabled
-const DEMO_MODE = import.meta.env.MODE !== 'production' || import.meta.env.VITE_DEMO_MODE === 'true';
+// Only show demo accounts when feature flag is enabled
+// Note: This is separate from demoMode in UIStore (which controls demo data simulation)
+const DEMO_MODE = featureFlags.SHOW_DEMO_ACCOUNTS;
 
 type DemoAccount = {
   label: string;

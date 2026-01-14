@@ -26,17 +26,27 @@ export class TradingService {
       orderBy: [{ category: "asc" }, { code: "asc" }],
     });
 
-    const latest = await this.prisma.tradingReadinessSnapshot.findFirst({
+    // Use TradingReadinessFactSnapshot (Week 3 - Track A.1) as primary source
+    // Falls back to TradingReadinessSnapshot for backward compatibility
+    const latestFact = await this.prisma.tradingReadinessFactSnapshot.findFirst({
       where: { loanId },
       orderBy: { computedAt: "desc" },
     });
 
+    const latestSnapshot = await this.prisma.tradingReadinessSnapshot.findFirst({
+      where: { loanId },
+      orderBy: { computedAt: "desc" },
+    });
+
+    // Prefer fact snapshot, fallback to legacy snapshot
+    const latest = latestFact || latestSnapshot;
+
     return {
       loanId,
-      score: latest?.score ?? 0,
-      band: (latest?.band ?? ReadinessBand.RED) as any,
+      score: latestFact?.readinessScore ?? latestSnapshot?.score ?? 0,
+      band: (latestFact?.readinessBand ?? latestSnapshot?.band ?? ReadinessBand.RED) as any,
       computedAt: latest?.computedAt ? latest.computedAt.toISOString() : null,
-      reasons: latest?.reasons ?? null,
+      reasons: latestSnapshot?.reasons ?? null,
       checklist: checklist.map((c) => ({
         id: c.id,
         code: c.code,

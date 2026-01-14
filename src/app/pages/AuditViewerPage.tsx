@@ -15,7 +15,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { httpClient } from '@/shared/api/httpClient';
 import { env } from '../config/env';
 
@@ -42,7 +42,8 @@ type AuditResponse = {
 };
 
 export function AuditViewerPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursors, setCursors] = useState<(string | null)[]>([null]); // Track cursor history for prev
   const limit = 25;
@@ -90,9 +91,16 @@ export function AuditViewerPage() {
   const audit = useQuery({
     queryKey: ['audit-events', params],
     queryFn: async () => {
-      return await httpClient.get<AuditResponse>('/api/audit/events', { query: params });
+      const response = await httpClient.get<AuditResponse>('/audit/events', { query: params });
+      // Ensure response has the expected structure
+      if (!response || typeof response !== 'object') {
+        console.error('Unexpected API response:', response);
+        return { items: [], nextCursor: null };
+      }
+      return response;
     },
     keepPreviousData: true,
+    retry: 1,
   });
 
   const [selected, setSelected] = useState<AuditEvent | null>(null);
@@ -135,6 +143,8 @@ export function AuditViewerPage() {
     setEntityId(''); // Clear hidden filter
     setCursor(null);
     setCursors([null]);
+    // Clear URL parameters
+    setSearchParams({});
   };
 
   const currentPage = cursors.length;
@@ -506,7 +516,14 @@ export function AuditViewerPage() {
               {!audit.isLoading && (audit.data?.items?.length ?? 0) === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>
-                    No audit events found for these filters.
+                    {audit.error ? (
+                      <div>
+                        <div style={{ color: '#dc2626', marginBottom: 8 }}>Error loading audit events</div>
+                        <div style={{ fontSize: 11 }}>{String(audit.error)}</div>
+                      </div>
+                    ) : (
+                      'No audit events found for these filters.'
+                    )}
                   </td>
                 </tr>
               )}

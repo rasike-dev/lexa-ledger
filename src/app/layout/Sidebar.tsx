@@ -149,7 +149,7 @@ export function Sidebar() {
           color: "rgb(var(--muted))",
         }}
       >
-        Demo Mode • v0.1
+        LEXA Ledger v1.0
       </div>
     </div>
   );

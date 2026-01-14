@@ -132,13 +132,13 @@ export function ExplainDrawerState({
     return (
       <div className="p-6">
         <div className="text-sm font-semibold text-slate-700 mb-4">{title}</div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-8">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
-              <AlertCircle className="w-6 h-6 text-slate-600" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-4">
+              <AlertCircle className="w-7 h-7 text-slate-500" />
             </div>
-            <div className="font-medium text-slate-900 mb-1">{emptyTitle}</div>
-            <div className="text-sm text-slate-600">{emptyBody}</div>
+            <div className="font-semibold text-slate-900 mb-2 text-base">{emptyTitle}</div>
+            <div className="text-sm text-slate-600 leading-relaxed max-w-sm mx-auto">{emptyBody}</div>
           </div>
         </div>
       </div>

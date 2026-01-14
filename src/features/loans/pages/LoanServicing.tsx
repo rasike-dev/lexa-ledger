@@ -259,12 +259,6 @@ export function LoanServicing() {
             </div>
             )}
 
-            {servicing.data.covenants.length > 0 && (
-              <div style={{ marginTop: 12, fontSize: 12, color: "rgb(var(--muted))" }}>
-                Demo note: Covenant status changes deterministically when switching scenarios. In
-                Phase 3, this will be driven by extracted covenant logic + borrower data feeds.
-              </div>
-            )}
           </div>
 
           {/* Obligations */}

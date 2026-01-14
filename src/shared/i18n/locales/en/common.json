@@ -26,6 +26,7 @@
   },
   "status": {
     "dataset": "Dataset",
+    "environment": "Environment",
     "lastExtraction": "Last extraction",
     "never": "Never"
   }

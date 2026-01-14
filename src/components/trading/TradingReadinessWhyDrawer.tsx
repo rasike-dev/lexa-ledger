@@ -53,16 +53,28 @@ export function TradingReadinessWhyDrawer({ loanId, open, onClose }: Props) {
       factsTitle="Latest Fact Snapshot"
       factsSummary={
         facts ? (
-          <div>
-            <span className="font-medium">Score:</span> {facts.readinessScore}{" "}
-            <span className="font-medium">Band:</span> {facts.readinessBand}
-            <div className="mt-1 text-xs text-gray-500">
-              computedAt: {new Date(facts.computedAt).toLocaleString()} • hash:{" "}
-              <span className="font-mono">{String(facts.factHash).slice(0, 12)}…</span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-4">
+              <div>
+                <span className="text-xs text-slate-500 font-medium">Score:</span>{" "}
+                <span className="font-semibold text-slate-900">{facts.readinessScore}</span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500 font-medium">Band:</span>{" "}
+                <span className={`font-semibold ${
+                  facts.readinessBand === 'GREEN' ? 'text-green-600' :
+                  facts.readinessBand === 'AMBER' ? 'text-amber-600' : 'text-red-600'
+                }`}>
+                  {facts.readinessBand}
+                </span>
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 font-mono">
+              computedAt: {new Date(facts.computedAt).toLocaleString()} • hash: {String(facts.factHash).slice(0, 16)}…
             </div>
           </div>
         ) : factsQ.isLoading ? (
-          "Loading facts…"
+          <span className="text-slate-500">Loading facts…</span>
         ) : (
           <span className="text-red-600">No facts found. Recompute to create a snapshot.</span>
         )

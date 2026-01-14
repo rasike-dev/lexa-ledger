@@ -78,7 +78,7 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
           width: '100%',
-          padding: '12px 16px',
+          padding: '16px 20px',
           background: isExpanded ? '#f8fafc' : 'white',
           border: 'none',
           cursor: 'pointer',
@@ -86,90 +86,141 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
           alignItems: 'center',
           justifyContent: 'space-between',
           textAlign: 'left',
+          transition: 'background-color 0.2s',
+        }}
+        onMouseOver={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.background = '#f8fafc';
+          }
+        }}
+        onMouseOut={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.background = 'white';
+          }
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: 16,
-              fontWeight: 600,
+              fontSize: 18,
+              fontWeight: 700,
+              boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)',
             }}
           >
             ?
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>
               Why is this rated {bandStyle.label}?
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              AI-powered explanation (based on deterministic facts)
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              AI-powered explanation based on deterministic fact snapshots
             </div>
           </div>
         </div>
-        <div style={{ fontSize: 18, color: '#94a3b8' }}>{isExpanded ? '−' : '+'}</div>
+        <div style={{ 
+          fontSize: 20, 
+          color: '#94a3b8',
+          fontWeight: 300,
+          width: 24,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {isExpanded ? '−' : '+'}
+        </div>
       </button>
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div style={{ padding: '0 16px 16px 16px' }}>
+        <div style={{ padding: '20px', background: '#fafbfc' }}>
           {/* Controls */}
           <div
             style={{
               display: 'flex',
               gap: 12,
-              marginBottom: 12,
-              paddingTop: 12,
-              borderTop: '1px solid #e5e7eb',
+              alignItems: 'center',
+              marginBottom: 20,
+              paddingBottom: 16,
+              borderBottom: '2px solid #e5e7eb',
             }}
           >
-            <div style={{ fontSize: 11, color: '#64748b', alignSelf: 'center' }}>
-              Audience: <span style={{ fontWeight: 600, color: '#0f172a' }}>Auto (from roles)</span>
+            <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Audience:</span>
+              <span style={{ fontWeight: 600, color: '#0f172a' }}>Auto (from roles)</span>
             </div>
-
-            <select
-              value={verbosity}
-              onChange={(e) => setVerbosity(e.target.value as any)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 8,
-                border: '1px solid #e5e7eb',
-                fontSize: 12,
-                background: 'white',
-              }}
-            >
-              <option value="SHORT">Short</option>
-              <option value="STANDARD">Standard</option>
-              <option value="DETAILED">Detailed</option>
-            </select>
-
-            <button
-              onClick={() => refetch()}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid #e5e7eb',
-                fontSize: 12,
-                background: 'white',
-                cursor: 'pointer',
-                fontWeight: 500,
-              }}
-            >
-              Refresh
-            </button>
+            <div style={{ width: '1px', height: 20, background: '#e5e7eb' }} />
+            <label style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Verbosity:</span>
+              <select
+                value={verbosity}
+                onChange={(e) => setVerbosity(e.target.value as any)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #d1d5db',
+                  fontSize: 12,
+                  background: 'white',
+                  fontWeight: 500,
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="SHORT">Short</option>
+                <option value="STANDARD">Standard</option>
+                <option value="DETAILED">Detailed</option>
+              </select>
+            </label>
+            <div style={{ marginLeft: 'auto' }}>
+              <button
+                onClick={() => refetch()}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: '1px solid #d1d5db',
+                  fontSize: 12,
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  color: '#0f172a',
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f3f4f6';
+                  e.currentTarget.style.borderColor = '#9ca3af';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.borderColor = '#d1d5db';
+                }}
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           {/* Loading State */}
           {isLoading && (
-            <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-              Generating explanation...
+            <div style={{ 
+              padding: '32px', 
+              textAlign: 'center', 
+              color: '#64748b', 
+              fontSize: 14,
+              background: 'white',
+              borderRadius: 8,
+              border: '1px solid #e5e7eb',
+            }}>
+              <div style={{ marginBottom: 8 }}>Generating explanation...</div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>This may take a few moments</div>
             </div>
           )}
 
@@ -177,47 +228,100 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
           {error && (
             <div
               style={{
-                padding: 12,
+                padding: '16px',
                 borderRadius: 8,
-                background: 'rgba(239,68,68,0.1)',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
                 color: '#dc2626',
                 fontSize: 13,
+                lineHeight: 1.5,
               }}
             >
-              Failed to load explanation. Please try again.
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Failed to load explanation</div>
+              <div>Please try again or contact support if the issue persists.</div>
             </div>
           )}
 
           {/* Explanation Content */}
           {explanation && !explanation.error && (
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Summary */}
               <div
                 style={{
-                  padding: 12,
+                  padding: '20px',
                   borderRadius: 8,
-                  background: '#f8fafc',
-                  marginBottom: 12,
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>
-                  SUMMARY
+                <div style={{ 
+                  fontSize: 11, 
+                  fontWeight: 700, 
+                  color: '#64748b', 
+                  marginBottom: 12,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>
+                  Executive Summary
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.5, color: '#0f172a' }}>
+                <div style={{ 
+                  fontSize: 14, 
+                  lineHeight: 1.7, 
+                  color: '#0f172a',
+                  fontWeight: 400,
+                }}>
                   {explanation.summary}
                 </div>
               </div>
 
               {/* Explanation Points */}
               {explanation.explanation.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>
-                    KEY FACTORS
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 8,
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                }}>
+                  <div style={{ 
+                    fontSize: 11, 
+                    fontWeight: 700, 
+                    color: '#64748b', 
+                    marginBottom: 16,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}>
+                    Key Contributing Factors
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
+                  <ul style={{ 
+                    margin: 0, 
+                    paddingLeft: 0,
+                    listStyle: 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}>
                     {explanation.explanation.map((point, idx) => (
-                      <li key={idx} style={{ marginBottom: 4, color: '#475569' }}>
-                        {point}
+                      <li 
+                        key={idx} 
+                        style={{ 
+                          display: 'flex',
+                          gap: 12,
+                          color: '#1e293b',
+                          fontSize: 14,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <div style={{
+                          flexShrink: 0,
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: '#6366f1',
+                          marginTop: 8,
+                        }} />
+                        <div style={{ flex: 1 }}>{point}</div>
                       </li>
                     ))}
                   </ul>
@@ -226,24 +330,58 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
 
               {/* Recommendations */}
               {explanation.recommendations.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>
-                    RECOMMENDATIONS
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 8,
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                }}>
+                  <div style={{ 
+                    fontSize: 11, 
+                    fontWeight: 700, 
+                    color: '#64748b', 
+                    marginBottom: 16,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}>
+                    Recommended Actions
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {explanation.recommendations.map((rec, idx) => (
                       <div
                         key={idx}
                         style={{
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          background: 'rgba(99,102,241,0.05)',
-                          border: '1px solid rgba(99,102,241,0.1)',
+                          padding: '14px 16px',
+                          borderRadius: 6,
+                          background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.08) 100%)',
+                          border: '1px solid rgba(99,102,241,0.2)',
                           fontSize: 13,
-                          color: '#475569',
+                          color: '#1e293b',
+                          lineHeight: 1.6,
+                          display: 'flex',
+                          gap: 10,
+                          alignItems: 'flex-start',
                         }}
                       >
-                        {rec}
+                        <div style={{
+                          flexShrink: 0,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 4,
+                          background: 'rgba(99,102,241,0.1)',
+                          border: '1px solid rgba(99,102,241,0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#6366f1',
+                          marginTop: 1,
+                        }}>
+                          {idx + 1}
+                        </div>
+                        <div style={{ flex: 1 }}>{rec}</div>
                       </div>
                     ))}
                   </div>
@@ -253,28 +391,45 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
               {/* Metadata Footer */}
               <div
                 style={{
-                  paddingTop: 12,
-                  borderTop: '1px solid #e5e7eb',
+                  padding: '16px 20px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #e5e7eb',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: 11,
-                  color: '#94a3b8',
+                  fontSize: 12,
+                  color: '#64748b',
                 }}
               >
-                <div>
-                  Confidence: <span style={{ fontWeight: 600 }}>{explanation.confidence}</span>
-                </div>
-                <div>
-                  Snapshot:{' '}
-                  <span
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                      fontSize: 10,
-                    }}
-                  >
-                    {explanation.factSnapshot.id.slice(0, 8)}...
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>Confidence:</span>{' '}
+                    <span style={{ 
+                      fontWeight: 700,
+                      color: explanation.confidence === 'HIGH' ? '#059669' : 
+                             explanation.confidence === 'MEDIUM' ? '#d97706' : '#dc2626'
+                    }}>
+                      {explanation.confidence}
+                    </span>
+                  </div>
+                  <div style={{ width: '1px', height: 16, background: '#cbd5e1' }} />
+                  <div>
+                    <span style={{ fontWeight: 600, color: '#475569' }}>Snapshot:</span>{' '}
+                    <span
+                      style={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                        fontSize: 11,
+                        color: '#64748b',
+                        background: 'white',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        border: '1px solid #e5e7eb',
+                      }}
+                    >
+                      {explanation.factSnapshot.id.slice(0, 8)}...
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -284,14 +439,17 @@ export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: Tradi
           {explanation?.error && (
             <div
               style={{
-                padding: 12,
+                padding: '16px',
                 borderRadius: 8,
-                background: 'rgba(239,68,68,0.1)',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
                 color: '#dc2626',
                 fontSize: 13,
+                lineHeight: 1.5,
               }}
             >
-              {explanation.error}
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Error</div>
+              <div>{explanation.error}</div>
             </div>
           )}
         </div>
