@@ -64,17 +64,23 @@ pnpm tauri dev
 ### Demo Credentials
 
 ```bash
-# Tenant Admin (full access)
-Username: rasike
-Password: rasike
+# 1. Tenant Administrator (Full Access)
+Username: tenant_admin
+Password: Admin@2024
+Roles: TENANT_ADMIN, TRADING_ANALYST, ESG_ANALYST, DOCUMENT_SPECIALIST, LOAN_OFFICER, ESG_VERIFIER
+Access: Full system access - can upload docs, manage loans, verify ESG, export audit, recompute trading scores
 
-# Compliance Auditor (read-only)
-Username: auditor
-Password: auditor
+# 2. Loan Officer (Operational Access)
+Username: loan_officer
+Password: Officer@2024
+Roles: LOAN_OFFICER, DOCUMENT_SPECIALIST
+Access: Operational access - can manage loan documents, view servicing data, track obligations, limited to assigned loans
 
-# Different Tenant (isolation demo)
-Username: testuser
-Password: testuser
+# 3. Compliance Auditor (Read-Only)
+Username: compliance_auditor
+Password: Auditor@2024
+Roles: COMPLIANCE_AUDITOR
+Access: Read-only access - can view and export audit trails, compliance reports, but mutations blocked (403)
 ```
 
 ---
