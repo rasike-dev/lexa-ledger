@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../store/uiStore";
 import { loanPaths } from "../routes/paths";
 import { IdentityPanel } from "../components/IdentityPanel";
+import { featureFlags } from "../config/featureFlags";
 
 export function Topbar() {
   const { t } = useTranslation("common");
@@ -47,7 +48,7 @@ export function Topbar() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {demoMode && (
+        {demoMode && featureFlags.GUIDED_DEMO && (
           <div
             className="demo-pulse"
             style={{

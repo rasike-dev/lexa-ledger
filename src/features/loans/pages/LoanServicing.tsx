@@ -11,6 +11,7 @@ import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { loanPaths } from "../../../app/routes/paths";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { featureFlags } from "../../../app/config/featureFlags";
 import PageHeader from "../../../components/layout/PageHeader";
 import { DemoDisclaimer, EmptyState } from "../../../components/common";
 
@@ -339,14 +340,16 @@ export function LoanServicing() {
           </div>
         </div>
 
-          <GuidedDemoCTA
-            step={2}
-            totalSteps={4}
-            title="Guided Demo • Next step"
-            body="Next, open Trading to see readiness score and diligence checklist react to covenant risk."
-            to={loanPaths.trading(loanId ?? "demo-loan-001")}
-            buttonLabel="Go to Trading"
-          />
+          {featureFlags.GUIDED_DEMO && (
+            <GuidedDemoCTA
+              step={2}
+              totalSteps={4}
+              title="Guided Demo • Next step"
+              body="Next, open Trading to see readiness score and diligence checklist react to covenant risk."
+              to={loanPaths.trading(loanId ?? "demo-loan-001")}
+              buttonLabel="Go to Trading"
+            />
+          )}
         </>
       )}
     </div>

@@ -15,6 +15,7 @@ import { useTradingRecompute } from "../../trading/hooks/useTradingRecompute";
 import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { featureFlags } from "../../../app/config/featureFlags";
 import { TradingWhyPanel } from "../../trading/components/TradingWhyPanel";
 import { TradingReadinessWhyDrawer } from "../../../components/trading/TradingReadinessWhyDrawer";
 import { TradingReadinessExplainabilityBadge } from "../../../components/trading/TradingReadinessExplainabilityBadge";
@@ -525,14 +526,16 @@ export function LoanTrading() {
             </button>
           </div>
 
-          <GuidedDemoCTA
-            step={3}
-            totalSteps={4}
-            title="Guided Demo • Next step"
-            body="Now review ESG KPIs and evidence verification — this feeds diligence and supports greener lending."
-            to={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
-            buttonLabel="Go to ESG"
-          />
+          {featureFlags.GUIDED_DEMO && (
+            <GuidedDemoCTA
+              step={3}
+              totalSteps={4}
+              title="Guided Demo • Next step"
+              body="Now review ESG KPIs and evidence verification — this feeds diligence and supports greener lending."
+              to={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
+              buttonLabel="Go to ESG"
+            />
+          )}
         </div>
       </div>
 

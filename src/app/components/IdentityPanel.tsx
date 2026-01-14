@@ -6,6 +6,7 @@ import { queryClient } from '../providers/QueryProvider';
 import { isUiRoleSimAllowed, useUiRoleSimStore } from '../../auth/uiRoleSim.store';
 import { Roles } from '../../auth/roles';
 import { useMeQuery } from '../../auth/useMeQuery';
+import { featureFlags } from '../config/featureFlags';
 
 /**
  * Step A2 — Identity Panel
@@ -128,7 +129,7 @@ export function IdentityPanel() {
         </div>
 
         {/* Role simulation badge (demo mode only) */}
-        {simActive && (
+        {featureFlags.GUIDED_DEMO && simActive && (
           <span
             style={{
               fontSize: 10,
@@ -280,7 +281,7 @@ export function IdentityPanel() {
             </div>
 
             {/* Role Simulation (demo mode only) */}
-            {isUiRoleSimAllowed() && (
+            {featureFlags.GUIDED_DEMO && isUiRoleSimAllowed() && (
               <>
                 <div style={{ height: 1, background: '#eef2f7', margin: '12px 0' }} />
 

@@ -12,6 +12,7 @@ import { useScrollToHash } from "../../../app/hooks/useScrollToHash";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { featureFlags } from "../../../app/config/featureFlags";
 
 function verificationBadge(status: string) {
   switch (status) {
@@ -600,14 +601,16 @@ export function LoanESG() {
             )}
           </div>
 
-          <GuidedDemoCTA
-            step={4}
-            totalSteps={4}
-            title="Guided Demo • Complete"
-            body="You've explored the full LMA-EDGE system: Origination → Documents → Servicing → Trading → ESG. Toggle demoMode to see live backend integration."
-            to={loanPaths.overview(loanId ?? "demo-loan-001")}
-            buttonLabel="Back to Overview"
-          />
+          {featureFlags.GUIDED_DEMO && (
+            <GuidedDemoCTA
+              step={4}
+              totalSteps={4}
+              title="Guided Demo • Complete"
+              body="You've explored the full LMA-EDGE system: Origination → Documents → Servicing → Trading → ESG. Toggle demoMode to see live backend integration."
+              to={loanPaths.overview(loanId ?? "demo-loan-001")}
+              buttonLabel="Back to Overview"
+            />
+          )}
         </>
       )}
     </div>

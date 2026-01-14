@@ -8,6 +8,7 @@ import { useLoanDocuments } from "../../documents/hooks/useLoanDocuments";
 import { useClauses } from "../../documents/hooks/useClauses";
 import { createDocumentContainerHttp, uploadDocumentVersionHttp } from "../../documents/services/httpDocumentsWriteApi";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
+import { featureFlags } from "../../../app/config/featureFlags";
 import { loanPaths } from "../../../app/routes/paths";
 
 function badgeColors(tag: string) {
@@ -361,14 +362,16 @@ export function LoanDocuments() {
         })}
       </div>
 
-      <GuidedDemoCTA
-        step={1}
-        totalSteps={4}
-        title="Guided Demo • Next step"
-        body="Next, open Servicing to see covenant monitoring and scenario simulation in action."
-        to={loanPaths.servicing(loanId ?? "demo-loan-001")}
-        buttonLabel="Go to Servicing"
-      />
+      {featureFlags.GUIDED_DEMO && (
+        <GuidedDemoCTA
+          step={1}
+          totalSteps={4}
+          title="Guided Demo • Next step"
+          body="Next, open Servicing to see covenant monitoring and scenario simulation in action."
+          to={loanPaths.servicing(loanId ?? "demo-loan-001")}
+          buttonLabel="Go to Servicing"
+        />
+      )}
     </div>
   );
 }

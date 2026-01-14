@@ -6,6 +6,7 @@ import { useLoanSnapshot } from "../hooks/useLoanSnapshot";
 import { useLoansList } from "../hooks/useLoansList";
 import { CopyLinkButton } from "../../../app/components/CopyLinkButton";
 import { buildDeepLink } from "../../../app/utils/deepLink";
+import { featureFlags } from "../../../app/config/featureFlags";
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -158,116 +159,118 @@ export function LoanOverview() {
           </div>
 
           {/* Guided Demo */}
-          <div
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgb(var(--border))",
-              background: "rgb(var(--card))",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 16 }}>Guided Demo (90 seconds)</div>
-                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                  A bank-ready walkthrough showing how structured documents drive servicing risk, trading diligence, and ESG transparency.
+          {featureFlags.GUIDED_DEMO && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid rgb(var(--border))",
+                background: "rgb(var(--card))",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 16 }}>Guided Demo (90 seconds)</div>
+                  <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
+                    A bank-ready walkthrough showing how structured documents drive servicing risk, trading diligence, and ESG transparency.
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => {
+                      const id = loanId ?? "demo-loan-001";
+                      resetDemoState(id);
+                      setDemoMode(true);
+                      navigate(`${loanPaths.documents(id)}#amendments`);
+                    }}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      border: "1px solid rgb(var(--border))",
+                      background: "rgb(var(--primary))",
+                      color: "white",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Start guided demo →
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const id = loanId ?? "demo-loan-001";
+                      resetDemoState(id);
+                    }}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      border: "1px solid rgb(var(--border))",
+                      background: "rgb(var(--bg))",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Reset demo state
+                  </button>
+
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      border: "1px solid rgb(var(--border))",
+                      background: "rgb(var(--bg))",
+                      fontWeight: 900,
+                      fontSize: 12,
+                      color: "rgb(var(--muted))",
+                    }}
+                  >
+                    Demo-safe • deterministic
+                  </span>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <button
-                  onClick={() => {
-                    const id = loanId ?? "demo-loan-001";
-                    resetDemoState(id);
-                    setDemoMode(true);
-                    navigate(`${loanPaths.documents(id)}#amendments`);
-                  }}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                    border: "1px solid rgb(var(--border))",
-                    background: "rgb(var(--primary))",
-                    color: "white",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Start guided demo →
-                </button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
+                <DemoStep
+                  n={1}
+                  title="Documents → Amendment impact"
+                  desc="Open the clause explorer and review the amendment impact preview."
+                  linkTo={`${loanPaths.documents(loanId ?? "demo-loan-001")}#amendments`}
+                  linkLabel="Open Documents"
+                  bullets={["See severity-labelled changes", "Click downstream impact chips to navigate"]}
+                />
 
-                <button
-                  onClick={() => {
-                    const id = loanId ?? "demo-loan-001";
-                    resetDemoState(id);
-                  }}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                    border: "1px solid rgb(var(--border))",
-                    background: "rgb(var(--bg))",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Reset demo state
-                </button>
+                <DemoStep
+                  n={2}
+                  title="Servicing → Stress scenario"
+                  desc="Toggle to stress scenario to surface covenant breaches and reduced headroom."
+                  linkTo={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
+                  linkLabel="Open Servicing"
+                  bullets={["Covenant statuses flip deterministically", "Sets up the trading diligence story"]}
+                />
 
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    border: "1px solid rgb(var(--border))",
-                    background: "rgb(var(--bg))",
-                    fontWeight: 900,
-                    fontSize: 12,
-                    color: "rgb(var(--muted))",
-                  }}
-                >
-                  Demo-safe • deterministic
-                </span>
+                <DemoStep
+                  n={3}
+                  title="Trading → Readiness + diligence"
+                  desc="Watch readiness score adjust based on covenant risk and see the checklist respond."
+                  linkTo={loanPaths.trading(loanId ?? "demo-loan-001")}
+                  linkLabel="Open Trading"
+                  bullets={["Score is explainable (transparent model)", "Checklist rows deep-link to fix areas"]}
+                />
+
+                <DemoStep
+                  n={4}
+                  title="ESG → KPI evidence & verification"
+                  desc="Review KPI status and evidence registry; see verification coverage feed into diligence."
+                  linkTo={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
+                  linkLabel="Open ESG"
+                  bullets={["Verified / unverified evidence mapped to KPIs", "Supports greener lending transparency"]}
+                />
               </div>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
-              <DemoStep
-                n={1}
-                title="Documents → Amendment impact"
-                desc="Open the clause explorer and review the amendment impact preview."
-                linkTo={`${loanPaths.documents(loanId ?? "demo-loan-001")}#amendments`}
-                linkLabel="Open Documents"
-                bullets={["See severity-labelled changes", "Click downstream impact chips to navigate"]}
-              />
-
-              <DemoStep
-                n={2}
-                title="Servicing → Stress scenario"
-                desc="Toggle to stress scenario to surface covenant breaches and reduced headroom."
-                linkTo={`${loanPaths.servicing(loanId ?? "demo-loan-001")}#covenants`}
-                linkLabel="Open Servicing"
-                bullets={["Covenant statuses flip deterministically", "Sets up the trading diligence story"]}
-              />
-
-              <DemoStep
-                n={3}
-                title="Trading → Readiness + diligence"
-                desc="Watch readiness score adjust based on covenant risk and see the checklist respond."
-                linkTo={loanPaths.trading(loanId ?? "demo-loan-001")}
-                linkLabel="Open Trading"
-                bullets={["Score is explainable (transparent model)", "Checklist rows deep-link to fix areas"]}
-              />
-
-              <DemoStep
-                n={4}
-                title="ESG → KPI evidence & verification"
-                desc="Review KPI status and evidence registry; see verification coverage feed into diligence."
-                linkTo={`${loanPaths.esg(loanId ?? "demo-loan-001")}#evidence`}
-                linkLabel="Open ESG"
-                bullets={["Verified / unverified evidence mapped to KPIs", "Supports greener lending transparency"]}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Lifecycle next steps */}
           <div style={{ marginTop: 16 }}>
