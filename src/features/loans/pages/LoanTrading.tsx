@@ -16,9 +16,13 @@ import { useEsg } from "../../esg/hooks/useEsg";
 import { computeEsgScorecard } from "../../esg/services/mockEsgApi";
 import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 import { featureFlags } from "../../../app/config/featureFlags";
-import { TradingWhyPanel } from "../../trading/components/TradingWhyPanel";
+import { ExplainabilityPanel } from "../../../components/trading/ExplainabilityPanel";
 import { TradingReadinessWhyDrawer } from "../../../components/trading/TradingReadinessWhyDrawer";
-import { TradingReadinessExplainabilityBadge } from "../../../components/trading/TradingReadinessExplainabilityBadge";
+import {
+  useExplainTradingReadiness,
+  useLatestTradingReadinessFacts,
+  useRecomputeTradingReadinessFacts,
+} from "../../../queries/useTradingReadinessExplain";
 
 type CovenantStatus = "OK" | "WATCH" | "BREACH_RISK";
 type ChecklistStatus = "PASS" | "REVIEW" | "FAIL";
@@ -70,13 +74,130 @@ function checklistToRoute(loanId: string, title: string, sourceRef?: string) {
   return `${loanPaths.overview(loanId)}#top`;
 }
 
+function ExplainabilityPanelWrapper({
+  loanId,
+  score,
+  band,
+}: {
+  loanId: string;
+  score: number;
+  band: "GREEN" | "AMBER" | "RED";
+}) {
+  const factsQ = useLatestTradingReadinessFacts(loanId);
+  const recomputeM = useRecomputeTradingReadinessFacts(loanId);
+  const explainM = useExplainTradingReadiness(loanId);
+  const verbosity = useUIStore((s) => s.tradingExplainVerbosity);
+  const setVerbosity = useUIStore((s) => s.setTradingExplainVerbosity);
+  const markExplained = useUIStore((s) => s.markExplained);
+  const [whyDrawerOpen, setWhyDrawerOpen] = React.useState(false);
+
+  const facts = factsQ.data;
+  const explanation = explainM.data;
+
+  const handleExplain = async () => {
+    await explainM.mutateAsync(verbosity);
+    if (facts?.factHash) markExplained(loanId, facts.factHash);
+  };
+
+  const handleViewFacts = () => {
+    setWhyDrawerOpen(true);
+  };
+
+  // Render explanation content
+  const explanationContent = explanation ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {explanation.summary && (
+        <div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "rgb(var(--muted-foreground))", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Executive Summary
+          </div>
+          <div style={{ fontSize: "13px", lineHeight: "1.7", color: "rgb(var(--foreground))" }}>
+            {explanation.summary}
+          </div>
+        </div>
+      )}
+      {explanation.explanation && explanation.explanation.length > 0 && (
+        <div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "rgb(var(--muted-foreground))", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Key Contributing Factors
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+            {explanation.explanation.map((point: string, idx: number) => (
+              <li key={idx} style={{ display: "flex", gap: 10, color: "rgb(var(--foreground))", fontSize: "13px", lineHeight: "1.6" }}>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "rgb(var(--primary))",
+                    marginTop: 7,
+                  }}
+                />
+                <div style={{ flex: 1 }}>{point}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {explanation.recommendations && explanation.recommendations.length > 0 && (
+        <div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "rgb(var(--muted-foreground))", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Recommended Actions
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {explanation.recommendations.map((rec: string, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "6px",
+                  background: "rgba(99,102,241,0.08)",
+                  border: "1px solid rgba(99,102,241,0.2)",
+                  fontSize: "13px",
+                  color: "rgb(var(--foreground))",
+                  lineHeight: "1.6",
+                }}
+              >
+                {rec}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <div style={{ marginBottom: 12 }}>
+        <ExplainabilityPanel
+          score={facts?.readinessScore ?? score}
+          band={facts?.readinessBand ?? band}
+          computedAt={facts?.computedAt}
+          factHash={facts?.factHash}
+          hasExplanation={!!explanation}
+          onExplain={handleExplain}
+          onRecomputeFacts={() => recomputeM.mutate()}
+          onViewFacts={handleViewFacts}
+          verbosity={verbosity === "STANDARD" ? "Standard" : verbosity === "SHORT" ? "Standard" : "Detailed"}
+          setVerbosity={(v) => setVerbosity(v === "Standard" ? "STANDARD" : "DETAILED")}
+          isExplaining={explainM.isPending}
+          isRecomputing={recomputeM.isPending}
+          explanation={explanationContent}
+        />
+      </div>
+      <TradingReadinessWhyDrawer loanId={loanId} open={whyDrawerOpen} onClose={() => setWhyDrawerOpen(false)} />
+    </>
+  );
+}
+
 export function LoanTrading() {
   const { loanId } = useParams();
   const navigate = useNavigate();
   const setActiveLoanId = useUIStore((s) => s.setActiveLoanId);
   const demoMode = useUIStore((s) => s.demoMode);
   const { roles } = useAuthStore();
-  const [whyDrawerOpen, setWhyDrawerOpen] = React.useState(false);
 
   const canRecompute = hasAnyRole(roles, [
     Roles.TRADING_ANALYST,
@@ -220,16 +341,7 @@ export function LoanTrading() {
       <PageHeader
         title="Trading • Trade Readiness"
         subtitle="Risk-aware automation for secondary trading diligence and readiness scoring"
-        right={
-          !demoMode && canViewWhy && loanId ? (
-            <button
-              onClick={() => setWhyDrawerOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
-            >
-              Why?
-            </button>
-          ) : undefined
-        }
+        right={undefined}
       />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -237,15 +349,6 @@ export function LoanTrading() {
         <LinkChip to={loanPaths.servicing(loanId ?? "demo-loan-001")} label="Go to Servicing" />
       </div>
 
-      {/* Week 3 - Track A.1: Explainability Badge (Live API only) */}
-      {!demoMode && loanId && (
-        <div style={{ marginBottom: 12 }}>
-          <TradingReadinessExplainabilityBadge
-            loanId={loanId}
-            onOpenWhyDrawer={() => setWhyDrawerOpen(true)}
-          />
-        </div>
-      )}
 
       {/* Summary cards */}
       <div
@@ -276,15 +379,11 @@ export function LoanTrading() {
 
       {/* Week 3 - Track A.1: Explainable Trading Readiness (Why Panel) */}
       {!demoMode && loanId && tradingSummary.data && (
-        <div style={{ marginBottom: 12 }}>
-          <TradingWhyPanel
-            loanId={loanId}
-            readinessScore={scoreModel.score}
-            readinessBand={
-              tradingSummary.data.band as 'GREEN' | 'AMBER' | 'RED'
-            }
-          />
-        </div>
+        <ExplainabilityPanelWrapper
+          loanId={loanId}
+          score={scoreModel.score}
+          band={tradingSummary.data.band as "GREEN" | "AMBER" | "RED"}
+        />
       )}
 
       {/* Control Panel (live data only) */}
@@ -539,14 +638,6 @@ export function LoanTrading() {
         </div>
       </div>
 
-      {/* Week 3 - Track A.1: Explainable Trading Readiness Drawer */}
-      {!demoMode && loanId && (
-        <TradingReadinessWhyDrawer
-          loanId={loanId}
-          open={whyDrawerOpen}
-          onClose={() => setWhyDrawerOpen(false)}
-        />
-      )}
     </div>
   );
 }
