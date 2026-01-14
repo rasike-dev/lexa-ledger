@@ -1,8 +1,10 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useUIStore } from "../store/uiStore";
 import { useTranslation } from "react-i18next";
 import { useLoanSnapshot } from "../../features/loans/hooks/useLoanSnapshot";
 import { useAuditTimeline } from "../../features/loans/hooks/useAuditTimeline";
+import { loanPaths } from "../routes/paths";
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -128,6 +130,52 @@ export function RightDrawer() {
           </>
         )}
       </div>
+
+      {/* Obligations */}
+      {activeLoanId && (
+        <div style={{ padding: "0 16px 16px 16px" }}>
+          <div
+            style={{
+              borderRadius: "12px",
+              border: "1px solid rgb(var(--border))",
+              background: "rgb(var(--card))",
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "rgb(var(--foreground))" }}>
+              Obligations
+            </div>
+            <div style={{ marginTop: 4, fontSize: "12px", color: "rgb(var(--muted-foreground))" }}>
+              Derived obligations are available in Servicing.
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Link
+                to={loanPaths.servicing(activeLoanId)}
+                style={{
+                  display: "inline-flex",
+                  borderRadius: "8px",
+                  border: "1px solid rgb(var(--border))",
+                  padding: "6px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "rgb(var(--foreground))",
+                  background: "rgb(var(--background))",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgb(var(--muted))";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgb(var(--background))";
+                }}
+              >
+                Open Servicing
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Audit Timeline */}
       <div style={{ padding: "0 16px 16px 16px" }}>

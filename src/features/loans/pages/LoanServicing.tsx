@@ -14,6 +14,7 @@ import { GuidedDemoCTA } from "../../../app/components/GuidedDemoCTA";
 import { featureFlags } from "../../../app/config/featureFlags";
 import PageHeader from "../../../components/layout/PageHeader";
 import { DemoDisclaimer, EmptyState } from "../../../components/common";
+import { ObligationsCard } from "../../../components/obligations/ObligationsCard";
 
 function statusStyle(status: "PASS" | "WARN" | "FAIL") {
   if (status === "PASS") return { bg: "rgba(16,185,129,0.12)", fg: "rgb(16,185,129)", label: "PASS" };
@@ -282,55 +283,7 @@ export function LoanServicing() {
               />
             </div>
 
-            <div
-              style={{
-                border: "1px solid rgb(var(--border))",
-                borderRadius: 12,
-                background: "rgb(var(--card))",
-              }}
-            >
-              <div
-                style={{
-                  padding: 12,
-                  borderBottom: "1px solid rgb(var(--border))",
-                  fontSize: 12,
-                  color: "rgb(var(--muted))",
-                }}
-              >
-                Upcoming reporting & deliverables
-              </div>
-
-              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div
-                  style={{
-                    padding: 10,
-                    borderRadius: 12,
-                    border: "1px solid rgb(var(--border))",
-                    background: "rgb(var(--bg))",
-                  }}
-                >
-                  <div style={{ fontWeight: 800 }}>Obligations feature coming soon</div>
-                  <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 4 }}>
-                    API endpoint for obligations will be added in a future phase.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <button
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid rgb(var(--border))",
-                  background: "rgb(var(--bg))",
-                  fontWeight: 900,
-                }}
-              >
-                Generate compliance summary (next)
-              </button>
-            </div>
+            {loanId && <ObligationsCard loanId={loanId} />}
           </div>
         </div>
 

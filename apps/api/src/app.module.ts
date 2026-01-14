@@ -29,6 +29,7 @@ import { UserOrIpThrottlerGuard } from "./security/throttler-user-or-ip.guard";
 import { BullMQRootModule } from "./config/bullmq.config";
 import { AiJobsModule } from "./ai/jobs/ai-jobs.module";
 import { OpsModule } from "./ops/ops.module";
+import { ObligationsModule } from "./obligations/obligations.module";
 
 /**
  * Root application module.
@@ -74,6 +75,7 @@ import { OpsModule } from "./ops/ops.module";
     EsgModule,
     PortfolioModule,
     MeModule,
+    ObligationsModule,
   ],
   providers: [
     // Guards run before interceptors, in order of registration

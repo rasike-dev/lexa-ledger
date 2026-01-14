@@ -6,6 +6,7 @@ import { usePortfolioLoans } from "../hooks/usePortfolioLoans";
 import { usePortfolioSummary } from "../hooks/usePortfolioSummary";
 import PageHeader from "../../../components/layout/PageHeader";
 import { DemoDisclaimer, EmptyState } from "../../../components/common";
+import { PortfolioObligationsCard } from "../../../components/obligations/PortfolioObligationsCard";
 
 type Band = "ALL" | "GREEN" | "AMBER" | "RED";
 type SortKey = "UPDATED" | "AMOUNT" | "TRADING" | "FAILS" | "ESG_PENDING";
@@ -158,6 +159,11 @@ export function PortfolioHome() {
           value={summaryQ.data ? `${summaryQ.data.esg.evidencePending} items` : "—"}
           loading={summaryQ.isLoading}
         />
+      </div>
+
+      {/* Portfolio Obligations */}
+      <div style={{ marginBottom: 24 }}>
+        <PortfolioObligationsCard days={30} />
       </div>
 
       {/* Search */}
