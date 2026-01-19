@@ -129,6 +129,9 @@ importers:
       bullmq:
         specifier: ^5.66.4
         version: 5.66.4
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       helmet:
         specifier: ^8.0.0
         version: 8.1.0
