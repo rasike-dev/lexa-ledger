@@ -1,0 +1,22 @@
+[ {
+  "id" : "a742c114-8711-4d51-9a99-cf8605ce3b4a",
+  "name" : "offline_access",
+  "description" : "${role_offline-access}",
+  "composite" : false,
+  "clientRole" : false,
+  "containerId" : "fc808af9-8860-4ef5-9735-80f84a03c3f1"
+}, {
+  "id" : "653f8217-8ebc-43a5-9d72-3288736dd826",
+  "name" : "uma_authorization",
+  "description" : "${role_uma_authorization}",
+  "composite" : false,
+  "clientRole" : false,
+  "containerId" : "fc808af9-8860-4ef5-9735-80f84a03c3f1"
+}, {
+  "id" : "3b764bb8-e071-4465-a9ab-2f70516319b1",
+  "name" : "default-roles-lexa-ledger",
+  "description" : "${role_default-roles}",
+  "composite" : true,
+  "clientRole" : false,
+  "containerId" : "fc808af9-8860-4ef5-9735-80f84a03c3f1"
+} ]

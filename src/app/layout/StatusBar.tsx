@@ -1,10 +1,8 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { useUIStore } from "../store/uiStore";
 
 export function StatusBar() {
   const { t } = useTranslation("common");
-  const dataset = useUIStore((s) => s.datasetMode);
   const lastExtractionAt = useUIStore((s) => s.lastExtractionAt);
 
   return (

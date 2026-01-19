@@ -11,7 +11,7 @@
  * - Audit trail deep link
  */
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useLatestTradingReadinessFacts,

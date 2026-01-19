@@ -1,0 +1,57 @@
+[ {
+  "id" : "f5fe2ae7-66d1-48f9-aeb9-802f80aa76e5",
+  "name" : "delete-account",
+  "description" : "${role_delete-account}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "34d87112-ed27-4dc6-bb39-6ea829f4ba4a",
+  "name" : "view-applications",
+  "description" : "${role_view-applications}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "501a1665-71f5-4215-8a9d-d3c3d4c97e57",
+  "name" : "view-consent",
+  "description" : "${role_view-consent}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "2cb8783a-ae07-4eda-bd63-4c9fc7550b4a",
+  "name" : "manage-account-links",
+  "description" : "${role_manage-account-links}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "371f27ca-34ca-4835-8868-8c3ab7235cf0",
+  "name" : "manage-consent",
+  "description" : "${role_manage-consent}",
+  "composite" : true,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "376b1061-a953-437e-8fef-731210530594",
+  "name" : "view-profile",
+  "description" : "${role_view-profile}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "e558dd0b-e728-44c4-ac29-ecaef45e9228",
+  "name" : "manage-account",
+  "description" : "${role_manage-account}",
+  "composite" : true,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+}, {
+  "id" : "2f0fecb1-5aea-4cac-a1b0-75693c39db30",
+  "name" : "view-groups",
+  "description" : "${role_view-groups}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "49b5eef7-5b23-4876-982d-bef4fa466c50"
+} ]

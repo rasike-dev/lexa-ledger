@@ -142,7 +142,7 @@ export function startEsgVerifyWorker(storage: Storage) {
 
       return { evidenceId, status: result.status, confidence: result.confidence };
     },
-    { connection },
+    { connection: connection as any },
   );
 
   // eslint-disable-next-line no-console

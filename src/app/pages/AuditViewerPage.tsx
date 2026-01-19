@@ -15,7 +15,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { httpClient } from '@/shared/api/httpClient';
 import { env } from '../config/env';
 
@@ -43,7 +43,6 @@ type AuditResponse = {
 
 export function AuditViewerPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursors, setCursors] = useState<(string | null)[]>([null]); // Track cursor history for prev
   const limit = 25;
@@ -99,7 +98,7 @@ export function AuditViewerPage() {
       }
       return response;
     },
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     retry: 1,
   });
 

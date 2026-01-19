@@ -1,4 +1,4 @@
-import { env } from "@/app/config/env";
+// import { env } from "@/app/config/env"; // Unused
 import { useUIStore } from "@/app/store/uiStore";
 import { fetchServicingSummaryHttp, setServicingScenarioHttp, requestServicingRecomputeHttp } from "./httpServicingApi";
 import { fetchServicing as fetchServicingMock } from "./mockServicingApi";
@@ -16,12 +16,12 @@ async function fetchServicingSummaryMock(loanId: string) {
     lastTestedAt: new Date().toISOString(),
     covenants: mockData.covenants.map((c) => ({
       covenantId: c.id,
-      code: c.code,
+      code: (c as any).code || c.id,
       title: c.name,
       threshold: c.threshold,
       unit: c.unit,
-      value: scenario === "BASE" ? c.actual : c.stressActual,
-      status: scenario === "BASE" ? c.status : c.stressStatus,
+      value: scenario === "BASE" ? (c as any).actual : (c as any).stressActual,
+      status: scenario === "BASE" ? (c as any).status : (c as any).stressStatus,
       testedAt: new Date().toISOString(),
       notes: null,
     })),

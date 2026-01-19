@@ -1,0 +1,8 @@
+[ {
+  "id" : "a1158dc9-a9c8-45d1-9cff-e0ca43751357",
+  "name" : "read-token",
+  "description" : "${role_read-token}",
+  "composite" : false,
+  "clientRole" : true,
+  "containerId" : "affa1f17-c011-4439-ad62-1d2854cc98af"
+} ]

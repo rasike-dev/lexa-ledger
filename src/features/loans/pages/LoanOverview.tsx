@@ -1,5 +1,5 @@
-import React from "react";
 import { useParams, NavLink, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { loanPaths } from "../../../app/routes/paths";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useLoanSnapshot } from "../hooks/useLoanSnapshot";
@@ -27,7 +27,7 @@ export function LoanOverview() {
   const resetDemoState = useUIStore((s) => s.resetDemoState);
   const setDemoMode = useUIStore((s) => s.setDemoMode);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
@@ -125,36 +125,44 @@ export function LoanOverview() {
               marginBottom: 12,
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{q.data.borrower}</div>
-            <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
-              Loan ID:{" "}
-              <span
-                style={{
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                }}
-              >
-                {q.data.id}
-              </span>
-              {" • "}
-              Agent: {q.data.agentBank}
-              {" • "}
-              Status: {q.data.status}
-            </div>
+            {q.data ? (
+              <>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>{q.data.borrower}</div>
+                <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginTop: 6 }}>
+                  Loan ID:{" "}
+                  <span
+                    style={{
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    }}
+                  >
+                    {q.data.id}
+                  </span>
+                  {" • "}
+                  Agent: {q.data.agentBank}
+                  {" • "}
+                  Status: {q.data.status}
+                </div>
+              </>
+            ) : null}
           </div>
 
           {/* Quick KPIs */}
           <div
             style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}
           >
-            <KpiCard title="Facility" value={formatMoney(q.data.facilityAmount, q.data.currency)} />
-            <KpiCard title="Margin" value={`${q.data.marginBps} bps`} />
-            <KpiCard title="Last updated" value={new Date(q.data.lastUpdatedAt).toLocaleString()} />
+            {q.data ? (
+              <>
+                <KpiCard title="Facility" value={formatMoney(q.data.facilityAmount, q.data.currency)} />
+                <KpiCard title="Margin" value={`${q.data.marginBps} bps`} />
+                <KpiCard title="Last updated" value={new Date(q.data.lastUpdatedAt).toLocaleString()} />
+              </>
+            ) : null}
 
-            <KpiCard title="Covenants tracked" value={String(q.data.covenants)} />
-            <KpiCard title="ESG clauses tracked" value={String(q.data.esgClauses)} />
+            <KpiCard title="Covenants tracked" value={q.data ? String(q.data.covenants) : "0"} />
+            <KpiCard title="ESG clauses tracked" value={q.data ? String(q.data.esgClauses) : "0"} />
             <KpiCard
               title="Lifecycle health"
-              value={<LifecycleHealth covenants={q.data.covenants} esg={q.data.esgClauses} />}
+              value={q.data ? <LifecycleHealth covenants={q.data.covenants} esg={q.data.esgClauses} /> : null}
             />
           </div>
 
@@ -279,26 +287,30 @@ export function LoanOverview() {
             <div
               style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
             >
-              <ModuleCard
-                title="Documents"
-                description="Explore clauses, compare amendments, and review change impact."
-                to={loanPaths.documents(q.data.id)}
-              />
-              <ModuleCard
-                title="Servicing"
-                description="Monitor covenants, obligations, and early warning signals."
-                to={loanPaths.servicing(q.data.id)}
-              />
-              <ModuleCard
-                title="Trading"
-                description="Generate a trade readiness snapshot and diligence checklist."
-                to={loanPaths.trading(q.data.id)}
-              />
-              <ModuleCard
-                title="ESG"
-                description="Track ESG obligations, KPIs, and verification evidence."
-                to={loanPaths.esg(q.data.id)}
-              />
+              {q.data ? (
+                <>
+                  <ModuleCard
+                    title="Documents"
+                    description="Explore clauses, compare amendments, and review change impact."
+                    to={loanPaths.documents(q.data.id)}
+                  />
+                  <ModuleCard
+                    title="Servicing"
+                    description="Monitor covenants, obligations, and early warning signals."
+                    to={loanPaths.servicing(q.data.id)}
+                  />
+                  <ModuleCard
+                    title="Trading"
+                    description="Generate a trade readiness snapshot and diligence checklist."
+                    to={loanPaths.trading(q.data.id)}
+                  />
+                  <ModuleCard
+                    title="ESG"
+                    description="Track ESG obligations, KPIs, and verification evidence."
+                    to={loanPaths.esg(q.data.id)}
+                  />
+                </>
+              ) : null}
             </div>
           </div>
         </>
@@ -307,7 +319,7 @@ export function LoanOverview() {
   );
 }
 
-function KpiCard({ title, value }: { title: string; value: React.ReactNode }) {
+function KpiCard({ title, value }: { title: string; value: React.ReactNode | string | number }) {
   return (
     <div
       style={{

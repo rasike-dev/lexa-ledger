@@ -1,4 +1,15 @@
 import "reflect-metadata";
+// Load environment variables from .env file automatically
+// This works in both development and production
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env file from the api-dist directory (production)
+// Falls back to current directory (development)
+dotenv.config({
+  path: path.resolve(__dirname, '../../.env'), // Production: ~/lexa-ledger/api-dist/.env
+});
+
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
@@ -34,8 +45,7 @@ function getAllowedOrigins(): string[] | boolean {
   
   // Fallback: Restrict to your production domains
   return [
-    'https://your-production-domain.com',
-    'https://app.your-production-domain.com',
+    'https://app.lexaledger.com',
   ];
 }
 
@@ -62,7 +72,7 @@ async function bootstrap() {
   // This prevents unauthorized domains from making API requests
   app.enableCors({
     origin: getAllowedOrigins(),
-    credentials: false, // We use Bearer tokens, not cookies
+    credentials: true, // Allow credentials to match frontend (credentials: 'include')
     allowedHeaders: [
       'Content-Type',
       'Authorization',

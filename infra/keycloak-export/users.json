@@ -1,0 +1,81 @@
+[ {
+  "id" : "6e18bea6-460f-4bc7-b1fb-196a849946e1",
+  "username" : "auditor1",
+  "firstName" : "Compliance",
+  "lastName" : "Auditor",
+  "email" : "auditor1@example.com",
+  "emailVerified" : true,
+  "createdTimestamp" : 1768541743230,
+  "enabled" : true,
+  "totp" : false,
+  "disableableCredentialTypes" : [ ],
+  "requiredActions" : [ ],
+  "notBefore" : 0,
+  "access" : {
+    "manageGroupMembership" : true,
+    "view" : true,
+    "mapRoles" : true,
+    "impersonate" : true,
+    "manage" : true
+  }
+}, {
+  "id" : "d53ba6d5-2c20-4173-8609-7d0622ae8963",
+  "username" : "rasike",
+  "firstName" : "Rasike",
+  "lastName" : "Abeyratne",
+  "email" : "rasike.abeyratne@gmail.com",
+  "emailVerified" : true,
+  "createdTimestamp" : 1768541753843,
+  "enabled" : true,
+  "totp" : false,
+  "disableableCredentialTypes" : [ ],
+  "requiredActions" : [ ],
+  "notBefore" : 0,
+  "access" : {
+    "manageGroupMembership" : true,
+    "view" : true,
+    "mapRoles" : true,
+    "impersonate" : true,
+    "manage" : true
+  }
+}, {
+  "id" : "a973708a-dcd2-471f-95ba-32616db8501c",
+  "username" : "testuser",
+  "firstName" : "FirstnameTest",
+  "lastName" : "LastNameTest",
+  "email" : "testuser@example.com",
+  "emailVerified" : true,
+  "createdTimestamp" : 1768541764571,
+  "enabled" : true,
+  "totp" : false,
+  "disableableCredentialTypes" : [ ],
+  "requiredActions" : [ ],
+  "notBefore" : 0,
+  "access" : {
+    "manageGroupMembership" : true,
+    "view" : true,
+    "mapRoles" : true,
+    "impersonate" : true,
+    "manage" : true
+  }
+}, {
+  "id" : "69921f89-b1e8-45ab-b4d8-1540ab664039",
+  "username" : "user-alex-001",
+  "firstName" : "Alex",
+  "lastName" : "Morgan",
+  "email" : "alex.morgan@acmecapital.com",
+  "emailVerified" : true,
+  "createdTimestamp" : 1768541774721,
+  "enabled" : true,
+  "totp" : false,
+  "disableableCredentialTypes" : [ ],
+  "requiredActions" : [ ],
+  "notBefore" : 0,
+  "access" : {
+    "manageGroupMembership" : true,
+    "view" : true,
+    "mapRoles" : true,
+    "impersonate" : true,
+    "manage" : true
+  }
+} ]

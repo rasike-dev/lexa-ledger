@@ -1,0 +1,10 @@
+{
+  "realmMappings" : [ {
+    "id" : "0ab4d678-43fb-4db9-8e11-c0a34f988655",
+    "name" : "COMPLIANCE_AUDITOR",
+    "description" : "Risk compliance - Risk Compliance Auditor",
+    "composite" : false,
+    "clientRole" : false,
+    "containerId" : "a95fcc64-e850-4790-a895-9df0c26688f0"
+  } ]
+}

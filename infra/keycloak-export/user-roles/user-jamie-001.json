@@ -1,0 +1,17 @@
+{
+  "realmMappings" : [ {
+    "id" : "a4e1e6d5-0220-4427-9dba-cbe64f44c600",
+    "name" : "TRADING_VIEWER",
+    "description" : "Trading - viewer",
+    "composite" : false,
+    "clientRole" : false,
+    "containerId" : "a95fcc64-e850-4790-a895-9df0c26688f0"
+  }, {
+    "id" : "4686c31e-e3b5-4b7d-935b-217d79257496",
+    "name" : "TRADING_ANALYST",
+    "description" : "Trading - trading analyst",
+    "composite" : false,
+    "clientRole" : false,
+    "containerId" : "a95fcc64-e850-4790-a895-9df0c26688f0"
+  } ]
+}

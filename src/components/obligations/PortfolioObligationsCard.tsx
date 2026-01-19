@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioObligations } from "../../features/obligations/hooks/usePortfolioObligations";
 import { EmptyState } from "../common";

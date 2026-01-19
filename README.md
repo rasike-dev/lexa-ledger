@@ -31,34 +31,88 @@ LEXA Ledger turns LMA loan documents into living digital assets — improving ef
 - Node.js 18+
 - Rust 1.70+ (for Tauri)
 - pnpm 8+ (recommended)
-- PostgreSQL 15+
-- Redis 7+
-- MinIO (or S3)
-- Keycloak 23+ (for SSO)
+- Docker & Docker Compose (for infrastructure services)
+- PostgreSQL 15+ (via Docker)
+- Redis 7+ (via Docker)
+- MinIO (via Docker)
+- Keycloak 23+ (for SSO - optional for local dev)
 
 ### Installation
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 pnpm install
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your Keycloak, PostgreSQL, Redis, MinIO credentials
+# 2. Start infrastructure services (PostgreSQL, Redis, MinIO)
+pnpm infra:up
 
-# Run database migrations
-pnpm prisma migrate dev
+# Wait for services to be healthy (check with: docker ps)
+# Services will be available at:
+# - PostgreSQL: localhost:5432 (user: lexa, password: lexa, db: lexa)
+# - Redis: localhost:6379
+# - MinIO: localhost:9000 (API), localhost:9001 (Console)
+#   Credentials: lexa / lexa_secret
 
-# Seed database
-pnpm prisma db seed
+# 3. Set up environment variables
+# Create apps/api/.env with your configuration:
+# Required variables:
+#   DATABASE_URL=postgresql://lexa:lexa@localhost:5432/lexa
+#   REDIS_URL=redis://localhost:6379
+#   MINIO_ENDPOINT=localhost
+#   MINIO_PORT=9000
+#   MINIO_USE_SSL=false
+#   MINIO_ACCESS_KEY=lexa
+#   MINIO_SECRET_KEY=lexa_secret
+#   MINIO_BUCKET=lexa-ledger
+#
+# Optional (for authentication):
+#   KEYCLOAK_ISSUER_URL=...
+#   KEYCLOAK_CLIENT_ID=...
+#   KEYCLOAK_CLIENT_SECRET=...
 
-# Start services (in separate terminals)
+# 4. Run database migrations
+pnpm prisma:migrate
+
+# 5. Seed database
+# Seeds tenant, user, 5 demo loans, and all related data (servicing, trading, ESG, clauses, evidence, audit events)
+pnpm db:seed
+
+# Validate seed data
+pnpm seed:validate
+
+# 6. Start services
+
+# Option A: Start everything at once
+pnpm dev:all          # Starts infra, API, worker, and frontend
+
+# Option B: Start services separately (in different terminals)
 pnpm api:dev          # Backend API (port 3000)
 pnpm worker:dev       # Background worker
 pnpm dev              # Frontend (port 5173)
 
-# For desktop app
+# 7. For desktop app (Tauri)
 pnpm tauri dev
+```
+
+### Useful Commands
+
+```bash
+# Infrastructure
+pnpm infra:up         # Start all services
+pnpm infra:down       # Stop all services
+pnpm infra:logs       # View service logs
+
+# Database
+pnpm prisma:migrate   # Run migrations
+pnpm prisma:studio    # Open Prisma Studio (database GUI)
+pnpm db:seed          # Seed complete demo dataset (tenant, user, 5 loans, all data)
+pnpm seed:validate    # Validate seed data
+
+# Development
+pnpm api:dev          # Start API server
+pnpm worker:dev       # Start background worker
+pnpm dev              # Start frontend dev server
+pnpm dev:all          # Start everything
 ```
 
 ### Demo Credentials

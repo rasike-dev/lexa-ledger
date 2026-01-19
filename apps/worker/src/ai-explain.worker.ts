@@ -97,9 +97,8 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
             loanId: facts.loanId,
             readinessScore: facts.readinessScore,
             readinessBand: facts.readinessBand,
-            blockers: facts.blockers,
-            missingArtifacts: facts.missingArtifacts,
-            upstreamSignals: facts.upstreamSignals,
+            contributingFactors: facts.contributingFactors,
+            blockingIssues: facts.blockingIssues,
             computedAt: facts.computedAt,
             computedBy: facts.computedBy,
             factVersion: facts.factVersion,
@@ -399,7 +398,7 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
       // Unknown job type
       return { ignored: true, name: job.name };
     },
-    { connection }
+    { connection: connection as any }
   );
 
   console.log(`🤖 AI Explain Worker listening on queue: ${AI_EXPLAIN_QUEUE}`);

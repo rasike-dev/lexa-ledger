@@ -1,5 +1,5 @@
-import React from "react";
 import { useParams } from "react-router-dom";
+import { useEffect, type ReactNode } from "react";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useAuthStore } from "../../../app/store/authStore";
 import { Roles, hasAnyRole } from "../../../auth/roles";
@@ -45,7 +45,7 @@ export function LoanServicing() {
   const currentScenario = servicing.data?.scenario ?? "BASE";
   const lastTestedAt = servicing.data?.lastTestedAt;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
@@ -171,7 +171,12 @@ export function LoanServicing() {
               />
             </div>
 
-            {servicing.data.covenants.length === 0 ? (
+            {!servicing.data ? (
+              <EmptyState
+                title="Loading..."
+                body="Loading servicing data..."
+              />
+            ) : servicing.data.covenants.length === 0 ? (
               <EmptyState
                 title="No covenants found"
                 body="Covenants will appear here once document clauses are processed and covenant monitoring is configured."
@@ -303,7 +308,7 @@ export function LoanServicing() {
   );
 }
 
-function KpiMini({ title, value }: { title: string; value: React.ReactNode }) {
+function KpiMini({ title, value }: { title: string; value: ReactNode }) {
   return (
     <div
       style={{

@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { useUIStore } from "../store/uiStore";
 import { useTranslation } from "react-i18next";
@@ -248,7 +247,7 @@ export function RightDrawer() {
           <div style={{ color: "rgb(var(--muted))" }}>Loading snapshot…</div>
         ) : loanQ.isError ? (
           <div style={{ color: "rgb(var(--danger))" }}>Failed to load snapshot</div>
-        ) : (
+        ) : loanQ.data ? (
           <>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>{loanQ.data.borrower}</div>
             <div style={{ fontSize: 12, color: "rgb(var(--muted))", marginBottom: 12 }}>
@@ -311,7 +310,7 @@ export function RightDrawer() {
               Updated: {new Date(loanQ.data.lastUpdatedAt).toLocaleString()}
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       {/* Obligations */}
@@ -368,7 +367,7 @@ export function RightDrawer() {
           <div style={{ color: "rgb(var(--muted))" }}>Loading timeline…</div>
         ) : auditQ.isError ? (
           <div style={{ color: "rgb(var(--danger))" }}>Failed to load timeline</div>
-        ) : (
+        ) : auditQ.data ? (
           <ol style={{ margin: 0, paddingLeft: 18 }}>
             {auditQ.data.slice(0, 6).map((evt) => (
               <li key={evt.id} style={{ marginBottom: 10 }}>
@@ -380,7 +379,7 @@ export function RightDrawer() {
               </li>
             ))}
           </ol>
-        )}
+        ) : null}
       </div>
 
       {/* Actions */}

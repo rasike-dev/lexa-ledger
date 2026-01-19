@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { PrismaClient, ScenarioMode, CovenantStatus } from "@prisma/client";
+import { PrismaClient, ScenarioMode, CovenantTestStatus } from "@prisma/client";
 import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
 
 function must(name: string): string {
@@ -27,11 +27,11 @@ function computeMetricValue(metric: string, scenario: "BASE" | "STRESS") {
   }
 }
 
-function evalStatus(operator: string, value: number, threshold: number): CovenantStatus {
+function evalStatus(operator: string, value: number, threshold: number): CovenantTestStatus {
   // Rule-driven evaluation
-  if (operator === "GTE") return value >= threshold ? CovenantStatus.PASS : CovenantStatus.FAIL;
-  if (operator === "LTE") return value <= threshold ? CovenantStatus.PASS : CovenantStatus.FAIL;
-  return CovenantStatus.WARN;
+  if (operator === "GTE") return value >= threshold ? CovenantTestStatus.PASS : CovenantTestStatus.FAIL;
+  if (operator === "LTE") return value <= threshold ? CovenantTestStatus.PASS : CovenantTestStatus.FAIL;
+  return CovenantTestStatus.WARN;
 }
 
 export function startServicingRecomputeWorker() {
@@ -81,7 +81,7 @@ export function startServicingRecomputeWorker() {
 
       return { covenants: covenants.length };
     },
-    { connection },
+    { connection: connection as any },
   );
 
   // eslint-disable-next-line no-console

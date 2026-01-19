@@ -289,7 +289,7 @@ export function startTradingRecomputeWorker() {
 
       return { score, band };
     },
-    { connection },
+    { connection: connection as any },
   );
 
   // eslint-disable-next-line no-console

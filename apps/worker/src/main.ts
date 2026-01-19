@@ -125,7 +125,7 @@ new Worker<DocumentExtractJob>(
 
     return { clauseCount: clauses.length };
   },
-  { connection }
+  { connection: connection as any }
 );
 
 console.log("🧠 Worker listening on queue: document.extract");

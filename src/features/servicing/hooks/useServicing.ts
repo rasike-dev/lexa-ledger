@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useUIStore } from "@/app/store/uiStore";
 import { fetchServicingSummary } from "../services/servicingApi";
-import type { CovenantComputed, CovenantStatus, ServicingPayload } from "../types";
+import type { CovenantComputed, CovenantStatus, ServicingPayload, Covenant, Obligation } from "../types";
 
 export function useServicing(loanId: string | null) {
   const demoMode = useUIStore((s) => s.demoMode);
@@ -38,7 +38,7 @@ function computeHeadroom(operator: "<=" | ">=", threshold: number, actual: numbe
 }
 
 export function enrichCovenants(
-  payload: ServicingPayload,
+  payload: ServicingPayload | { covenants: Covenant[]; obligations?: Obligation[]; loanId?: string },
   scenario: "base" | "stress"
 ): CovenantComputed[] {
   return payload.covenants.map((c) => {

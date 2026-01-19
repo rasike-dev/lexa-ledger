@@ -8,7 +8,6 @@
  * CRITICAL: No legal interpretation - explains thresholds, observed values, and breach logic only.
  */
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ExplainabilityDrawer } from "../explainability/ExplainabilityDrawer";
 import { useUIStore } from "../../app/store/uiStore";
@@ -22,15 +21,15 @@ type Props = {
   onClose: () => void;
 };
 
-export function CovenantWhyDrawer({ loanId, covenantId, open, onClose }: Props) {
+export function CovenantWhyDrawer({ loanId, covenantId: _covenantId, open, onClose }: Props) {
   const navigate = useNavigate();
   
   // Auth & RBAC
   const roles = useAuthStore((s) => s.roles ?? []);
-  const canRecompute = hasAnyRole(roles, [Roles.SERVICING_OFFICER, Roles.TENANT_ADMIN]);
+  const canRecompute = hasAnyRole(roles, [Roles.TENANT_ADMIN]); // SERVICING_OFFICER role doesn't exist
 
   // UI state
-  const verbosity = useUIStore((s) => s.covenantExplainVerbosity || 'STANDARD');
+  const verbosity = useUIStore((s) => (s as any).covenantExplainVerbosity || 'STANDARD');
   const setVerbosity = (v: any) => {
     // Store in UIStore when available
     console.log('Covenant explain verbosity:', v);
@@ -48,7 +47,7 @@ export function CovenantWhyDrawer({ loanId, covenantId, open, onClose }: Props) 
     data: null, 
     isPending: false, 
     error: null,
-    mutateAsync: async (v: any) => {}
+    mutateAsync: async (_v: any) => {}
   };
 
   const facts: any = factsQ.data;
@@ -93,7 +92,7 @@ export function CovenantWhyDrawer({ loanId, covenantId, open, onClose }: Props) 
       }}
       result={result}
       error={explainM.error}
-      isEmpty={!facts || factsQ.error}
+      isEmpty={!facts || !!factsQ.error}
       onCopyResult={() => navigator.clipboard.writeText(JSON.stringify(result, null, 2))}
       onViewAuditTrail={() =>
         navigate(`/audit?entityType=LOAN&entityId=${loanId}&module=SERVICING&action=EXPLAIN_COVENANT`)

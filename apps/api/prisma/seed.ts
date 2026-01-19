@@ -36,7 +36,7 @@ async function main() {
     create: { tenantId: tenant.id, userId: user.id, role: UserRole.ORG_ADMIN },
   });
 
-  // 4) Create demo loan (stable ID for frontend - also creates ACME-TERM-001 for compatibility)
+  // 4) Create demo loan (stable ID for frontend)
   const loan = await prisma.loan.upsert({
     where: { id: "ACME-TERM-001" },
     update: {
@@ -51,32 +51,6 @@ async function main() {
     },
     create: {
       id: "ACME-TERM-001",
-      tenantId: tenant.id,
-      borrower: "Acme Manufacturing Ltd",
-      agentBank: "Example Agent Bank",
-      currency: "USD",
-      facilityAmount: BigInt(250_000_000),
-      marginBps: 325,
-      status: "Active",
-      lastUpdatedAt: new Date(),
-    },
-  });
-  
-  // Also create demo-loan-001 as alias for backward compatibility
-  await prisma.loan.upsert({
-    where: { id: "demo-loan-001" },
-    update: {
-      tenantId: tenant.id,
-      borrower: "Acme Manufacturing Ltd",
-      agentBank: "Example Agent Bank",
-      currency: "USD",
-      facilityAmount: BigInt(250_000_000),
-      marginBps: 325,
-      status: "Active",
-      lastUpdatedAt: new Date(),
-    },
-    create: {
-      id: "demo-loan-001",
       tenantId: tenant.id,
       borrower: "Acme Manufacturing Ltd",
       agentBank: "Example Agent Bank",
