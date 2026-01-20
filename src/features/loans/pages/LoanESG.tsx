@@ -117,6 +117,7 @@ export function LoanESG() {
   const [uploadTitle, setUploadTitle] = React.useState("");
   const [uploadType, setUploadType] = React.useState("REPORT");
   const [uploadKpiId, setUploadKpiId] = React.useState("");
+  const [verifyingEvidenceId, setVerifyingEvidenceId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
@@ -519,8 +520,36 @@ export function LoanESG() {
                   {/* Action Buttons */}
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button
-                      onClick={() => verifyMutation.mutate(ev.id)}
-                      disabled={!canVerifyESG || demoMode || verifyMutation.isPending}
+                      onClick={async () => {
+                        setVerifyingEvidenceId(ev.id);
+                        let timeoutId: NodeJS.Timeout | null = null;
+                        try {
+                          await verifyMutation.mutateAsync(ev.id);
+                          // Wait a moment for query invalidation to refetch
+                          // Use a tracked timeout that can be cleaned up
+                          await new Promise<void>(resolve => {
+                            timeoutId = setTimeout(resolve, 500);
+                          });
+                        } catch (error) {
+                          console.error("Verify failed:", error);
+                          // Show error to user
+                          window.dispatchEvent(
+                            new CustomEvent('lexa:toast', {
+                              detail: {
+                                type: 'error',
+                                message: error instanceof Error ? error.message : 'Failed to verify evidence',
+                              },
+                            })
+                          );
+                        } finally {
+                          // Clear timeout if still pending (component might unmount)
+                          if (timeoutId !== null) {
+                            clearTimeout(timeoutId);
+                          }
+                          setVerifyingEvidenceId(null);
+                        }
+                      }}
+                      disabled={!canVerifyESG || demoMode || verifyingEvidenceId === ev.id}
                       title={
                         !canVerifyESG
                           ? "Requires ESG Analyst, ESG Verifier, or Tenant Admin role"
@@ -540,7 +569,7 @@ export function LoanESG() {
                         transition: "all 0.2s",
                       }}
                       onMouseEnter={(e) => {
-                        if (!demoMode && canVerifyESG) {
+                        if (!demoMode && canVerifyESG && verifyingEvidenceId !== ev.id) {
                           e.currentTarget.style.background = "rgb(var(--primary))";
                           e.currentTarget.style.color = "white";
                         }
@@ -552,7 +581,7 @@ export function LoanESG() {
                         }
                       }}
                     >
-                      {verifyMutation.isPending ? "🔄 Verifying..." : "🔄 Verify Now"}
+                      {verifyingEvidenceId === ev.id ? "🔄 Verifying..." : "🔄 Verify Now"}
                     </button>
                     <button
                       onClick={() => {
