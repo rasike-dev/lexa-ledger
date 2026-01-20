@@ -7,7 +7,7 @@ export function useVerifyEsgEvidence(loanId: string | null) {
   
   // Track active polling operations to prevent memory leaks
   const activePollingRef = useRef<Set<string>>(new Set());
-  const timeoutIdsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  const timeoutIdsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   // Cleanup: Clear all timers and cancel polling on unmount
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useVerifyEsgEvidence(loanId: string | null) {
     };
   }, []);
 
-  const scheduleTimeout = (callback: () => void, delay: number): NodeJS.Timeout => {
+  const scheduleTimeout = (callback: () => void, delay: number): ReturnType<typeof setTimeout> => {
     const id = setTimeout(() => {
       timeoutIdsRef.current.delete(id);
       callback();
