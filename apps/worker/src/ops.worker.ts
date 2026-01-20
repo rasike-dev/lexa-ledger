@@ -69,6 +69,11 @@ async function processNightlyRefresh(job: Job, prisma: PrismaClient) {
   const payload = job.data as NightlyRefreshTenantPayload;
   const { tenantId, correlationId, reason } = payload;
 
+  // Validate required fields
+  if (!tenantId) {
+    throw new Error('Missing required field: tenantId');
+  }
+
   // Audit: Job started
   await prisma.auditEvent.create({
     data: {

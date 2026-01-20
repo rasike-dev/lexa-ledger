@@ -1,7 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { TenantContext } from "../tenant/tenant-context";
 import { ReadinessBand, ScenarioMode } from "@prisma/client";
+import { logApiError } from "../common/error-logger";
 
 @Injectable()
 export class PortfolioService {
@@ -25,19 +26,20 @@ export class PortfolioService {
   }
 
   async getPortfolioLoans() {
-    // Tenant filtering is automatic via Prisma middleware
-    const loans = await this.prisma.loan.findMany({
-      where: {},
-      orderBy: { lastUpdatedAt: "desc" },
-      select: {
-        id: true,
-        borrower: true,
-        currency: true,
-        facilityAmount: true,
-        status: true,
-        lastUpdatedAt: true,
-      },
-    });
+    try {
+      // Tenant filtering is automatic via Prisma middleware
+      const loans = await this.prisma.loan.findMany({
+        where: {},
+        orderBy: { lastUpdatedAt: "desc" },
+        select: {
+          id: true,
+          borrower: true,
+          currency: true,
+          facilityAmount: true,
+          status: true,
+          lastUpdatedAt: true,
+        },
+      });
 
     const result = [];
 
@@ -161,12 +163,21 @@ export class PortfolioService {
       });
     }
 
-    return { loans: result };
+      return { loans: result };
+    } catch (error) {
+      logApiError(error, {
+        component: 'PortfolioService',
+        event: 'get_portfolio_loans_failed',
+        tenantId: this.tenant.tenantId,
+      });
+      throw new InternalServerErrorException("Failed to retrieve portfolio loans");
+    }
   }
 
   async getPortfolioSummary() {
-    // reuse loans rollups (simple + consistent)
-    const { loans } = await this.getPortfolioLoans();
+    try {
+      // reuse loans rollups (simple + consistent)
+      const { loans } = await this.getPortfolioLoans();
 
     const totals = {
       loans: loans.length,
@@ -189,13 +200,21 @@ export class PortfolioService {
       offTrackKpis: loans.reduce((s: number, l: any) => s + (l.esg.offTrackCount ?? 0), 0),
     };
 
-    return {
-      totals,
-      tradingBands,
-      servicing,
-      esg,
-      lastRefreshedAt: new Date().toISOString(),
-    };
+      return {
+        totals,
+        tradingBands,
+        servicing,
+        esg,
+        lastRefreshedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      logApiError(error, {
+        component: 'PortfolioService',
+        event: 'get_portfolio_summary_failed',
+        tenantId: this.tenant.tenantId,
+      });
+      throw new InternalServerErrorException("Failed to retrieve portfolio summary");
+    }
   }
 }
 

@@ -129,14 +129,23 @@ async function generateTradingFactSnapshot(params: {
   });
 }
 
-export function startTradingRecomputeWorker() {
-  new Worker<JobData>(
+export function startTradingRecomputeWorker(): Worker<JobData> {
+  const worker = new Worker<JobData>(
     "trading.recompute",
     async (job) => {
       const { tenantId, loanId, correlationId } = job.data;
 
+      // Validate required fields
+      if (!tenantId || !loanId) {
+        throw new Error(
+          `Missing required job data fields: tenantId=${!!tenantId}, loanId=${!!loanId}`
+        );
+      }
+
       const loan = await prisma.loan.findFirst({ where: { id: loanId, tenantId } });
-      if (!loan) throw new Error("Loan not found");
+      if (!loan) {
+        throw new Error(`Loan not found: ${loanId} for tenant ${tenantId}`);
+      }
 
       const checklist = await prisma.tradingChecklistItem.findMany({
         where: { tenantId, loanId },
@@ -294,5 +303,7 @@ export function startTradingRecomputeWorker() {
 
   // eslint-disable-next-line no-console
   console.log("📈 Worker listening on queue: trading.recompute");
+  
+  return worker;
 }
 

@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
@@ -25,6 +25,7 @@ import { PortfolioModule } from "./portfolio/portfolio.module";
 import { AuditModule } from "./audit/audit.module";
 import { MeModule } from "./me/me.module";
 import { CorrelationIdMiddleware } from "./common/correlation-id.middleware";
+import { GlobalExceptionFilter } from "./common/global-exception.filter";
 import { UserOrIpThrottlerGuard } from "./security/throttler-user-or-ip.guard";
 import { BullMQRootModule } from "./config/bullmq.config";
 import { AiJobsModule } from "./ai/jobs/ai-jobs.module";
@@ -78,6 +79,11 @@ import { ObligationsModule } from "./obligations/obligations.module";
     ObligationsModule,
   ],
   providers: [
+    // Global exception filter (catches all exceptions)
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
     // Guards run before interceptors, in order of registration
     // 1. Rate limiting (runs first, before auth)
     {

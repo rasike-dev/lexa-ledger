@@ -65,16 +65,25 @@ function simpleVerifyRules(input: { title: string; contentType: string; bytes: n
   return { status, confidence, notes: notes.join(" | ") };
 }
 
-export function startEsgVerifyWorker(storage: Storage) {
-  new Worker<JobData>(
+export function startEsgVerifyWorker(storage: Storage): Worker<JobData> {
+  const worker = new Worker<JobData>(
     "esg.verify",
     async (job) => {
       const { tenantId, loanId, evidenceId } = job.data;
 
+      // Validate required fields
+      if (!tenantId || !loanId || !evidenceId) {
+        throw new Error(
+          `Missing required job data fields: tenantId=${!!tenantId}, loanId=${!!loanId}, evidenceId=${!!evidenceId}`
+        );
+      }
+
       const evidence = await prisma.eSGEvidence.findFirst({
         where: { id: evidenceId, tenantId, loanId },
       });
-      if (!evidence) throw new Error("Evidence not found");
+      if (!evidence) {
+        throw new Error(`Evidence not found: ${evidenceId} for loan ${loanId} in tenant ${tenantId}`);
+      }
 
       // Download file (optional but good for v1 sanity checks)
       const buf = await storage.getObject({ key: evidence.fileKey });
@@ -147,5 +156,7 @@ export function startEsgVerifyWorker(storage: Storage) {
 
   // eslint-disable-next-line no-console
   console.log("🧾 Worker listening on queue: esg.verify");
+  
+  return worker;
 }
 

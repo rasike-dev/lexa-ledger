@@ -34,14 +34,23 @@ function evalStatus(operator: string, value: number, threshold: number): Covenan
   return CovenantTestStatus.WARN;
 }
 
-export function startServicingRecomputeWorker() {
-  new Worker<JobData>(
+export function startServicingRecomputeWorker(): Worker<JobData> {
+  const worker = new Worker<JobData>(
     "servicing.recompute",
     async (job) => {
       const { tenantId, loanId, scenario } = job.data;
 
+      // Validate required fields
+      if (!tenantId || !loanId || !scenario) {
+        throw new Error(
+          `Missing required job data fields: tenantId=${!!tenantId}, loanId=${!!loanId}, scenario=${!!scenario}`
+        );
+      }
+
       const loan = await prisma.loan.findFirst({ where: { id: loanId, tenantId } });
-      if (!loan) throw new Error("Loan not found");
+      if (!loan) {
+        throw new Error(`Loan not found: ${loanId} for tenant ${tenantId}`);
+      }
 
       const covenants = await prisma.covenant.findMany({ where: { tenantId, loanId } });
 
@@ -86,5 +95,7 @@ export function startServicingRecomputeWorker() {
 
   // eslint-disable-next-line no-console
   console.log("🧮 Worker listening on queue: servicing.recompute");
+  
+  return worker;
 }
 
