@@ -1,4 +1,36 @@
-import "dotenv/config";
+// Load environment variables from .env file automatically
+// This works in both development and production
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Try multiple .env file locations (development and production)
+const envPaths = [
+  path.resolve(__dirname, '../../.env'), // Root .env (development)
+  path.resolve(__dirname, '../.env'), // apps/worker/.env (development)
+  path.resolve(process.cwd(), '.env'), // Current working directory (production)
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    const result = dotenv.config({ path: envPath });
+    if (!result.error) {
+      envLoaded = true;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`✅ Loaded environment variables from: ${envPath}`);
+      }
+      break;
+    }
+  }
+}
+
+// Also load from process.env (for production where env vars are set directly)
+// This ensures env vars work even if .env file doesn't exist
+if (!envLoaded && process.env.NODE_ENV === 'production') {
+  console.log('ℹ️  Using environment variables from process.env (production mode)');
+}
+
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient } from "@prisma/client";
@@ -17,6 +49,30 @@ function must(name: string): string {
   if (!v) throw new Error(`Missing env ${name}`);
   return v;
 }
+
+/**
+ * Validate critical environment variables are present
+ */
+function validateEnvVars() {
+  const required = ['REDIS_URL', 'DATABASE_URL'];
+  const missing: string[] = [];
+  
+  for (const key of required) {
+    if (!process.env[key]) {
+      missing.push(key);
+    }
+  }
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:', missing.join(', '));
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+  
+  console.log('✅ Worker environment variables validated');
+}
+
+// Validate environment variables before starting
+validateEnvVars();
 
 const prisma = new PrismaClient();
 const connection = new IORedis(must("REDIS_URL"), {

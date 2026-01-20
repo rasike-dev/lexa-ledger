@@ -3,12 +3,34 @@ import "reflect-metadata";
 // This works in both development and production
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as fs from 'fs';
 
-// Load .env file from the api-dist directory (production)
-// Falls back to current directory (development)
-dotenv.config({
-  path: path.resolve(__dirname, '../../.env'), // Production: ~/lexa-ledger/api-dist/.env
-});
+// Try multiple .env file locations (development and production)
+const envPaths = [
+  path.resolve(__dirname, '../../.env'), // Root .env (development)
+  path.resolve(__dirname, '../.env'), // apps/api/.env (development)
+  path.resolve(process.cwd(), '.env'), // Current working directory
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    const result = dotenv.config({ path: envPath });
+    if (!result.error) {
+      envLoaded = true;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`✅ Loaded environment variables from: ${envPath}`);
+      }
+      break;
+    }
+  }
+}
+
+// Also load from process.env (for production where env vars are set directly)
+// This ensures env vars work even if .env file doesn't exist
+if (!envLoaded && process.env.NODE_ENV === 'production') {
+  console.log('ℹ️  Using environment variables from process.env (production mode)');
+}
 
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
@@ -73,7 +95,47 @@ process.on('uncaughtException', (error) => {
   }, 1000);
 });
 
+/**
+ * Validate critical environment variables are present
+ */
+function validateEnvVars() {
+  const required = [
+    'DATABASE_URL',
+    'REDIS_URL',
+  ];
+  
+  const optional = [
+    'S3_ENDPOINT',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'KEYCLOAK_ISSUER',
+    'KEYCLOAK_JWKS_URI',
+  ];
+  
+  const missing: string[] = [];
+  for (const key of required) {
+    if (!process.env[key]) {
+      missing.push(key);
+    }
+  }
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:', missing.join(', '));
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+  
+  const present = optional.filter(key => process.env[key]);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ Required environment variables loaded');
+    console.log(`ℹ️  Optional environment variables present: ${present.length}/${optional.length}`);
+  }
+}
+
 async function bootstrap() {
+  // Validate environment variables before starting
+  validateEnvVars();
+  
   const app = await NestFactory.create(AppModule, {
     // Request timeout: 30 seconds
     // This prevents slow requests from consuming resources indefinitely

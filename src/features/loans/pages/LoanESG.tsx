@@ -522,7 +522,7 @@ export function LoanESG() {
                     <button
                       onClick={async () => {
                         setVerifyingEvidenceId(ev.id);
-                        let timeoutId: NodeJS.Timeout | null = null;
+                        let timeoutId: ReturnType<typeof setTimeout> | null = null;
                         try {
                           await verifyMutation.mutateAsync(ev.id);
                           // Wait a moment for query invalidation to refetch
