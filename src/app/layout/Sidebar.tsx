@@ -148,7 +148,7 @@ export function Sidebar() {
           color: "rgb(var(--muted))",
         }}
       >
-        LEXA Ledger v1.0
+        LEXA Ledger v{import.meta.env.VITE_APP_VERSION || '0.0.0'}
       </div>
     </div>
   );
