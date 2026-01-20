@@ -20,6 +20,7 @@
 import { Worker } from 'bullmq';
 import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type IORedis from 'ioredis';
 import { computeFactHash } from './utils/fact-hash';
 import { SERVICE_ACTOR_TYPE, SERVICE_CLIENT_ID } from './service-identity';
@@ -47,7 +48,7 @@ export function startOpsWorker(prisma: PrismaClient, connection: IORedis) {
       
       return { ignored: true, name: job.name };
     },
-    { connection }
+    { connection: connection as any }
   );
 
   console.log(`🔄 Ops Worker listening on queue: ${OPS_QUEUE}`);
@@ -67,6 +68,11 @@ export function startOpsWorker(prisma: PrismaClient, connection: IORedis) {
 async function processNightlyRefresh(job: Job, prisma: PrismaClient) {
   const payload = job.data as NightlyRefreshTenantPayload;
   const { tenantId, correlationId, reason } = payload;
+
+  // Validate required fields
+  if (!tenantId) {
+    throw new Error('Missing required field: tenantId');
+  }
 
   // Audit: Job started
   await prisma.auditEvent.create({
@@ -475,7 +481,7 @@ async function refreshCovenant(
       status: factCore.status as any,
       threshold: factCore.threshold,
       observed: factCore.observed,
-      breachDetail: factCore.breachDetail,
+      breachDetail: factCore.breachDetail ?? Prisma.JsonNull,
       inputSignals: factCore.inputSignals,
       sourceRefs: factCore.sourceRefs,
       computedBy: 'OPS_WORKER',

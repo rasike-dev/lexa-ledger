@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { logApiError } from "../common/error-logger";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -21,15 +22,26 @@ export class StorageService {
   });
 
   async putObject(params: { key: string; body: Buffer; contentType: string }) {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: params.key,
-        Body: params.body,
-        ContentType: params.contentType,
-      }),
-    );
-    return { key: params.key };
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: params.key,
+          Body: params.body,
+          ContentType: params.contentType,
+        }),
+      );
+      return { key: params.key };
+    } catch (error) {
+      logApiError(error, {
+        component: 'StorageService',
+        event: 'put_object_failed',
+        storageKey: params.key,
+        contentType: params.contentType,
+        fileSize: params.body.length,
+      });
+      throw new InternalServerErrorException("Failed to upload file to storage");
+    }
   }
 }
 

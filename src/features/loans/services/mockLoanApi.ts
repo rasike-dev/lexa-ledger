@@ -17,7 +17,7 @@ export async function fetchLoanSnapshot(loanId: string): Promise<LoanSnapshot> {
   return LoanSnapshotSchema.parse(loanDemo001);
 }
 
-export async function fetchAuditTimeline(loanId: string): Promise<AuditTimeline> {
+export async function fetchAuditTimeline(_loanId: string): Promise<AuditTimeline> {
   await sleep(250);
   // Use demo events but bind to current loan id in summary if needed later
   const data = auditDemo001;

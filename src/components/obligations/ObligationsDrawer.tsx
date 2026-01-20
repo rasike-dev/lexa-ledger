@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { useLoanObligations } from "../../features/obligations/hooks/useLoanObligations";
 import { loanPaths } from "../../app/routes/paths";

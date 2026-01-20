@@ -9,6 +9,8 @@ import { startAiExplainWorker } from "./ai-explain.worker";
 import { startOpsWorker } from "./ops.worker";
 import { minioStorage } from "./storage/minioStorage";
 import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
+import { logError, logWorkerError, logJobFailure, logWarning } from "./utils/error-logger";
+import { logJobFailureWithRetryInfo } from "./utils/retry-safeguard";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -19,6 +21,63 @@ function must(name: string): string {
 const prisma = new PrismaClient();
 const connection = new IORedis(must("REDIS_URL"), {
   maxRetriesPerRequest: null,
+  retryStrategy: (times: number) => {
+    // Prevent infinite reconnection attempts
+    const MAX_RECONNECT_ATTEMPTS = 100; // Maximum 100 reconnection attempts
+    if (times > MAX_RECONNECT_ATTEMPTS) {
+      logError(
+        new Error(`Redis reconnection exceeded maximum attempts (${MAX_RECONNECT_ATTEMPTS})`),
+        {
+          component: 'Redis',
+          event: 'max_reconnect_attempts_exceeded',
+          attempts: times,
+        }
+      );
+      // Return null to stop retrying
+      return null;
+    }
+    
+    const delay = Math.min(times * 50, 2000);
+    console.log(`Redis reconnecting (attempt ${times}/${MAX_RECONNECT_ATTEMPTS}) after ${delay}ms`);
+    return delay;
+  },
+  reconnectOnError: (err: Error) => {
+    const targetError = 'READONLY';
+    // Safely check error message
+    const errorMessage = err?.message || String(err || '');
+    if (errorMessage.includes(targetError)) {
+      // Only reconnect when the error contains "READONLY"
+      return true;
+    }
+    return false;
+  },
+});
+
+// Redis connection event handlers
+connection.on('error', (error) => {
+  logError(error, {
+    component: 'Redis',
+    event: 'connection_error',
+  });
+});
+
+connection.on('connect', () => {
+  console.log('Redis connected');
+});
+
+connection.on('ready', () => {
+  console.log('Redis ready');
+});
+
+connection.on('close', () => {
+  logWarning('Redis connection closed', {
+    component: 'Redis',
+    event: 'connection_closed',
+  });
+});
+
+connection.on('reconnecting', (delay: number) => {
+  console.log(`Redis reconnecting in ${delay}ms`);
 });
 
 type DocumentExtractJob = {
@@ -28,15 +87,28 @@ type DocumentExtractJob = {
   documentVersionId: string;
 };
 
-new Worker<DocumentExtractJob>(
+// Store worker references for graceful shutdown
+const workers: Worker[] = [];
+
+const documentExtractWorker = new Worker<DocumentExtractJob>(
   "document.extract",
   async (job) => {
     const { tenantId, loanId, documentVersionId } = job.data;
 
-    const dv = await prisma.documentVersion.findFirst({
-      where: { id: documentVersionId, tenantId },
-    });
-    if (!dv) throw new Error("DocumentVersion not found");
+    // Validate required fields
+    if (!tenantId || !loanId || !documentVersionId) {
+      throw new Error(
+        `Missing required job data fields: tenantId=${!!tenantId}, loanId=${!!loanId}, documentVersionId=${!!documentVersionId}`
+      );
+    }
+
+    try {
+      const dv = await prisma.documentVersion.findFirst({
+        where: { id: documentVersionId, tenantId },
+      });
+      if (!dv) {
+        throw new Error(`DocumentVersion not found: ${documentVersionId} for tenant ${tenantId}`);
+      }
 
     // idempotency
     await prisma.clause.deleteMany({
@@ -118,29 +190,207 @@ new Worker<DocumentExtractJob>(
       },
     });
 
-    await prisma.loan.update({
-      where: { id: loanId },
-      data: { lastUpdatedAt: new Date() },
-    });
+      await prisma.loan.update({
+        where: { id: loanId },
+        data: { lastUpdatedAt: new Date() },
+      });
 
-    return { clauseCount: clauses.length };
+      return { clauseCount: clauses.length };
+    } catch (error) {
+      logJobFailureWithRetryInfo(
+        error,
+        job,
+        'document.extract',
+        {
+          queueName: 'document.extract',
+          tenantId,
+          loanId,
+          documentVersionId,
+        }
+      );
+      
+      throw error; // Re-throw to let BullMQ handle retry (if attempts remaining)
+    }
   },
-  { connection }
+  { 
+    connection: connection as any,
+    // Note: Retry configuration (attempts, backoff) should be set at Queue level
+    // when adding jobs, not in Worker options
+  }
 );
 
+// Add error handlers for document extract worker
+documentExtractWorker.on('error', (error) => {
+  logWorkerError(error, 'document.extract', {
+    queueName: 'document.extract',
+  });
+});
+
+documentExtractWorker.on('failed', (job, err) => {
+  logJobFailure(
+    err,
+    'document.extract',
+    job?.id,
+    job?.name,
+    job?.data,
+    {
+      queueName: 'document.extract',
+      tenantId: job?.data?.tenantId,
+      loanId: job?.data?.loanId,
+      documentVersionId: job?.data?.documentVersionId,
+    }
+  );
+});
+
+workers.push(documentExtractWorker);
 console.log("🧠 Worker listening on queue: document.extract");
 
 // Start servicing recompute worker
-startServicingRecomputeWorker();
+const servicingWorker = startServicingRecomputeWorker();
+if (servicingWorker) workers.push(servicingWorker);
 
 // Start trading recompute worker
-startTradingRecomputeWorker();
+const tradingWorker = startTradingRecomputeWorker();
+if (tradingWorker) workers.push(tradingWorker);
 
 // Start ESG verify worker
-startEsgVerifyWorker(minioStorage);
+const esgWorker = startEsgVerifyWorker(minioStorage);
+if (esgWorker) workers.push(esgWorker);
 
 // Start AI explain worker (Week 3 - Track B Step B7)
-startAiExplainWorker(prisma, connection);
+const aiExplainWorker = startAiExplainWorker(prisma, connection);
+if (aiExplainWorker) workers.push(aiExplainWorker);
 
 // Start Ops worker (Week 3 - Track C Step C1)
-startOpsWorker(prisma, connection);
+const opsWorker = startOpsWorker(prisma, connection);
+if (opsWorker) workers.push(opsWorker);
+
+// Global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  logError(reason, {
+    component: 'Process',
+    event: 'unhandledRejection',
+    promise: String(promise),
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  logError(error, {
+    component: 'Process',
+    event: 'uncaughtException',
+  });
+  // Note: After logging, the process will exit, but PM2 will restart it
+  // Give brief time for error to be logged, then exit
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+// Graceful shutdown handler
+let isShuttingDown = false;
+let shutdownTimeout: NodeJS.Timeout | null = null;
+
+const shutdown = async (signal: string) => {
+  if (isShuttingDown) {
+    console.log('Shutdown already in progress, forcing exit...');
+    process.exit(1);
+  }
+
+  isShuttingDown = true;
+  console.log(`Received ${signal}, shutting down gracefully...`);
+
+  // Set a maximum shutdown timeout (30 seconds)
+  shutdownTimeout = setTimeout(() => {
+    console.error('Shutdown timeout exceeded, forcing exit...');
+    process.exit(1);
+  }, 30000);
+
+  try {
+    // Close all workers with timeout protection
+    console.log(`Closing ${workers.length} workers...`);
+    await Promise.allSettled(
+      workers.map(async (worker) => {
+        try {
+          // Add timeout for each worker close (5 seconds)
+          await Promise.race([
+            worker.close(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Worker close timeout')), 5000)
+            ),
+          ]);
+          console.log(`Worker ${worker.name || 'unknown'} closed`);
+        } catch (error) {
+          logError(error, {
+            component: 'Shutdown',
+            workerName: worker.name || 'unknown',
+            event: 'worker_close_error',
+          });
+          // Continue with shutdown even if worker close fails
+        }
+      })
+    );
+
+    // Close Prisma client with timeout
+    console.log('Closing Prisma client...');
+    try {
+      await Promise.race([
+        prisma.$disconnect(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Prisma disconnect timeout')), 5000)
+        ),
+      ]);
+      console.log('Prisma client closed');
+    } catch (error) {
+      logError(error, {
+        component: 'Shutdown',
+        event: 'prisma_disconnect_error',
+      });
+      // Continue with shutdown
+    }
+
+    // Close Redis connection with timeout
+    console.log('Closing Redis connection...');
+    try {
+      await Promise.race([
+        connection.quit(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Redis quit timeout')), 5000)
+        ),
+      ]);
+      console.log('Redis connection closed');
+    } catch (error) {
+      // Connection might already be closed, ignore error
+      logWarning('Redis connection close error (may already be closed)', {
+        component: 'Shutdown',
+        event: 'redis_close_error',
+      });
+    }
+
+    // Clear shutdown timeout
+    if (shutdownTimeout) {
+      clearTimeout(shutdownTimeout);
+      shutdownTimeout = null;
+    }
+
+    console.log('Graceful shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    logError(error, {
+      component: 'Shutdown',
+      event: 'shutdown_error',
+    });
+    
+    // Clear timeout before exit
+    if (shutdownTimeout) {
+      clearTimeout(shutdownTimeout);
+    }
+    
+    process.exit(1);
+  }
+};
+
+// Register shutdown handlers
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+console.log('✅ Worker service started with error handling and graceful shutdown');

@@ -62,6 +62,13 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
       if (job.name === 'TRADING_EXPLAIN_RECOMPUTE') {
         const p = job.data as TradingExplainRecomputePayload;
 
+        // Validate required fields
+        if (!p.tenantId || !p.loanId || !p.factHash) {
+          throw new Error(
+            `Missing required fields: tenantId=${!!p.tenantId}, loanId=${!!p.loanId}, factHash=${!!p.factHash}`
+          );
+        }
+
         // Audit: Job started
         await prisma.auditEvent.create({
           data: {
@@ -97,9 +104,8 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
             loanId: facts.loanId,
             readinessScore: facts.readinessScore,
             readinessBand: facts.readinessBand,
-            blockers: facts.blockers,
-            missingArtifacts: facts.missingArtifacts,
-            upstreamSignals: facts.upstreamSignals,
+            contributingFactors: facts.contributingFactors,
+            blockingIssues: facts.blockingIssues,
             computedAt: facts.computedAt,
             computedBy: facts.computedBy,
             factVersion: facts.factVersion,
@@ -146,6 +152,13 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
 
       if (job.name === 'ESG_KPI_EXPLAIN_RECOMPUTE') {
         const p = job.data as EsgKpiExplainRecomputePayload;
+
+        // Validate required fields
+        if (!p.tenantId || !p.loanId || !p.kpiId || !p.factHash) {
+          throw new Error(
+            `Missing required fields: tenantId=${!!p.tenantId}, loanId=${!!p.loanId}, kpiId=${!!p.kpiId}, factHash=${!!p.factHash}`
+          );
+        }
 
         // Audit: Job started
         await prisma.auditEvent.create({
@@ -230,6 +243,13 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
 
       if (job.name === 'COVENANT_EXPLAIN_RECOMPUTE') {
         const p = job.data as CovenantExplainRecomputePayload;
+
+        // Validate required fields
+        if (!p.tenantId || !p.loanId || !p.covenantId || !p.factHash) {
+          throw new Error(
+            `Missing required fields: tenantId=${!!p.tenantId}, loanId=${!!p.loanId}, covenantId=${!!p.covenantId}, factHash=${!!p.factHash}`
+          );
+        }
 
         // Audit: Job started
         await prisma.auditEvent.create({
@@ -318,6 +338,14 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
 
       if (job.name === 'PORTFOLIO_RISK_EXPLAIN_RECOMPUTE') {
         const p = job.data as PortfolioRiskExplainRecomputePayload;
+
+        // Validate required fields
+        if (!p.tenantId || !p.factHash) {
+          throw new Error(
+            `Missing required fields: tenantId=${!!p.tenantId}, factHash=${!!p.factHash}`
+          );
+        }
+
         const entityId = p.portfolioId ?? 'default';
 
         // Audit: Job started
@@ -399,7 +427,7 @@ export function startAiExplainWorker(prisma: PrismaClient, connection: IORedis) 
       // Unknown job type
       return { ignored: true, name: job.name };
     },
-    { connection }
+    { connection: connection as any }
   );
 
   console.log(`🤖 AI Explain Worker listening on queue: ${AI_EXPLAIN_QUEUE}`);

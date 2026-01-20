@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLoanObligations } from "../../features/obligations/hooks/useLoanObligations";
 import { EmptyState } from "../common";
 import { ObligationsDrawer } from "./ObligationsDrawer";

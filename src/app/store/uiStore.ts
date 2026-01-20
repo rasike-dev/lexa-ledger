@@ -36,6 +36,10 @@ type UIState = {
   // Explainability UI state (Week 3 - Track A.1)
   tradingExplainVerbosity: ExplainVerbosity;
   setTradingExplainVerbosity: (v: ExplainVerbosity) => void;
+  esgExplainVerbosity: ExplainVerbosity;
+  setEsgExplainVerbosity: (v: ExplainVerbosity) => void;
+  portfolioExplainVerbosity: ExplainVerbosity;
+  setPortfolioExplainVerbosity: (v: ExplainVerbosity) => void;
   lastExplainedFactHashByLoan: Record<string, string | undefined>;
   markExplained: (loanId: string, factHash: string) => void;
 
@@ -58,6 +62,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   // Explainability UI state
   tradingExplainVerbosity: "STANDARD",
+  esgExplainVerbosity: "STANDARD",
+  portfolioExplainVerbosity: "STANDARD",
   lastExplainedFactHashByLoan: {},
 
   setActiveLoanId: (id) => set(() => ({ activeLoanId: id, rightDrawerOpen: id ? true : false })),
@@ -71,6 +77,8 @@ export const useUIStore = create<UIState>((set) => ({
   setDemoMode: (on) => set(() => ({ demoMode: on })),
 
   setTradingExplainVerbosity: (v) => set(() => ({ tradingExplainVerbosity: v })),
+  setEsgExplainVerbosity: (v) => set(() => ({ esgExplainVerbosity: v })),
+  setPortfolioExplainVerbosity: (v) => set(() => ({ portfolioExplainVerbosity: v })),
   markExplained: (loanId, factHash) =>
     set((s) => ({
       lastExplainedFactHashByLoan: {
@@ -115,7 +123,7 @@ export const useUIStore = create<UIState>((set) => ({
       lastExtractionAt: null,
       demoMode: false,
       lastExplainedFactHashByLoan: {}, // Clear session-level explanation tracking
-      // Keep user preferences: role, theme, language, tradingExplainVerbosity
+      // Keep user preferences: role, theme, language, tradingExplainVerbosity, esgExplainVerbosity, portfolioExplainVerbosity
       // These are UI preferences, not tenant data
     })),
 }));

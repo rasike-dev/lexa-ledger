@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildKeycloakLoginUrl, buildKeycloakLogoutUrl, decodeJwt } from "../config/keycloak";
-import { tokenVault, isDesktop } from "../../auth/tokenVault";
+import { tokenVault } from "../../auth/tokenVault";
 
 /**
  * Enterprise auth state contract
@@ -144,11 +144,18 @@ export const useAuthStore = create<AuthState>()(
         
         try {
           // Open system browser (not embedded webview)
-          const { open } = await import('@tauri-apps/plugin-opener');
-          await open(loginUrl);
+          const opener = await import('@tauri-apps/plugin-opener');
+          if (opener && typeof opener === 'object' && 'open' in opener) {
+            await (opener as any).open(loginUrl);
+          } else {
+            // Fallback: use window.open for web compatibility
+            window.open(loginUrl, '_blank');
+          }
           console.log('[AuthStore] Opened system browser for login');
         } catch (error) {
           console.error('[AuthStore] Failed to open system browser:', error);
+          // Fallback: use window.open
+          window.open(loginUrl, '_blank');
         }
       },
 

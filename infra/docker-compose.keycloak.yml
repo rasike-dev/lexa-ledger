@@ -20,6 +20,12 @@ services:
       KC_DB_PASSWORD: keycloak
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      # HTTPS/Proxy Configuration - Required for HTTPS behind Nginx
+      KC_PROXY: edge
+      KC_HOSTNAME: auth.lexaledger.com
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_RELATIVE_PATH: /
     ports:
       - "8088:8080"
     depends_on:

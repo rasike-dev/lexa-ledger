@@ -39,9 +39,9 @@ export default function TradingReport() {
   }, [q.data]);
 
   const blockers = useMemo(() => {
-    const items = (q.data?.checklist ?? []).filter((i) => i.status !== "DONE");
+    const items = (q.data?.checklist ?? []).filter((i: any) => i.status !== "DONE");
     // weight desc, blocked first
-    return items.sort((a, b) => {
+    return items.sort((a: any, b: any) => {
       const pa = a.status === "BLOCKED" ? 0 : 1;
       const pb = b.status === "BLOCKED" ? 0 : 1;
       if (pa !== pb) return pa - pb;
@@ -131,7 +131,7 @@ export default function TradingReport() {
         <p>✅ No blockers. This loan is trade-ready.</p>
       ) : (
         <div style={{ marginBottom: 12 }}>
-          {blockers.slice(0, 8).map((i) => (
+          {blockers.slice(0, 8).map((i: any) => (
             <div key={i.id} style={{ padding: 10, border: "1px solid #eee", borderRadius: 10, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ fontWeight: 700 }}>{i.title}</div>

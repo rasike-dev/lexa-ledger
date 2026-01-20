@@ -18,6 +18,7 @@ interface TradingWhyPanelProps {
 }
 
 interface ExplanationResponse {
+  error?: string;
   summary: string;
   explanation: string[];
   recommendations: string[];
@@ -33,7 +34,7 @@ interface ExplanationResponse {
   };
 }
 
-export function TradingWhyPanel({ loanId, readinessScore, readinessBand }: TradingWhyPanelProps) {
+export function TradingWhyPanel({ loanId, readinessScore: _readinessScore, readinessBand }: TradingWhyPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [verbosity, setVerbosity] = useState<'SHORT' | 'STANDARD' | 'DETAILED'>('STANDARD');
 

@@ -71,33 +71,53 @@ export class QueueService {
   }
 
   async enqueueDocumentExtraction(job: DocumentExtractJob) {
-    await this.documentExtractQueue.add("extract", job);
+    await this.documentExtractQueue.add("extract", job, {
+      attempts: 3, // Maximum 3 attempts (initial + 2 retries)
+      backoff: {
+        type: 'exponential',
+        delay: 2000, // 2s, 4s, 8s delays
+      },
+      removeOnComplete: 1000, // Keep last 1000 successful jobs
+      removeOnFail: 1000, // Keep last 1000 failed jobs (after max attempts)
+    });
     return { queued: true };
   }
 
   async enqueueServicingRecompute(job: ServicingRecomputeJob) {
     await this.servicingRecomputeQueue.add("recompute", job, {
-      attempts: 3,
+      attempts: 3, // Maximum 3 attempts (initial + 2 retries)
+      backoff: {
+        type: 'exponential',
+        delay: 2000, // 2s, 4s, 8s delays
+      },
       removeOnComplete: 1000,
-      removeOnFail: 1000,
+      removeOnFail: 1000, // Keep last 1000 failed jobs (after max attempts)
     });
     return { queued: true };
   }
 
   async enqueueTradingRecompute(job: TradingRecomputeJob) {
     await this.tradingRecomputeQueue.add("recompute", job, {
-      attempts: 3,
+      attempts: 3, // Maximum 3 attempts (initial + 2 retries)
+      backoff: {
+        type: 'exponential',
+        delay: 2000, // 2s, 4s, 8s delays
+      },
       removeOnComplete: 1000,
-      removeOnFail: 1000,
+      removeOnFail: 1000, // Keep last 1000 failed jobs (after max attempts)
     });
     return { queued: true };
   }
 
   async enqueueESGVerification(job: ESGVerifyJob) {
     await this.esgVerifyQueue.add("verify", job, {
-      attempts: 3,
+      attempts: 3, // Maximum 3 attempts (initial + 2 retries)
+      backoff: {
+        type: 'exponential',
+        delay: 2000, // 2s, 4s, 8s delays
+      },
       removeOnComplete: 1000,
-      removeOnFail: 1000,
+      removeOnFail: 1000, // Keep last 1000 failed jobs (after max attempts)
     });
     return { queued: true };
   }

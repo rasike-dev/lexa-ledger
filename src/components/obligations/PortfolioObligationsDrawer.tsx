@@ -1,15 +1,7 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioObligations } from "../../features/obligations/hooks/usePortfolioObligations";
 import { loanPaths } from "../../app/routes/paths";
 import type { ObligationDto } from "../../features/obligations/types";
-
-function sourceLink(o: ObligationDto): string {
-  if (o.sourceType === "CLAUSE") return loanPaths.documents(o.loanId);
-  if (o.sourceType === "COVENANT") return loanPaths.servicing(o.loanId);
-  if (o.sourceType === "ESG_KPI") return loanPaths.esg(o.loanId);
-  return loanPaths.overview(o.loanId);
-}
 
 function statusPill(status: string) {
   const base = {

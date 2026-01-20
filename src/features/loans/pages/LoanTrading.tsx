@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useParams, NavLink, useNavigate } from "react-router-dom";
 import { useUIStore } from "../../../app/store/uiStore";
 import { useAuthStore } from "../../../app/store/authStore";
@@ -90,7 +90,7 @@ function ExplainabilityPanelWrapper({
   const verbosity = useUIStore((s) => s.tradingExplainVerbosity);
   const setVerbosity = useUIStore((s) => s.setTradingExplainVerbosity);
   const markExplained = useUIStore((s) => s.markExplained);
-  const [whyDrawerOpen, setWhyDrawerOpen] = React.useState(false);
+  const [whyDrawerOpen, setWhyDrawerOpen] = useState(false);
 
   const facts = factsQ.data;
   const explanation = explainM.data;
@@ -205,12 +205,12 @@ export function LoanTrading() {
     Roles.TENANT_ADMIN,
   ]);
 
-  const canViewWhy = hasAnyRole(roles, [
-    Roles.TRADING_ANALYST,
-    Roles.TRADING_VIEWER,
-    Roles.TENANT_ADMIN,
-    Roles.COMPLIANCE_AUDITOR,
-  ]);
+  // Unused for now: const canViewWhy = hasAnyRole(roles, [
+  //   Roles.TRADING_ANALYST,
+  //   Roles.TRADING_VIEWER,
+  //   Roles.TENANT_ADMIN,
+  //   Roles.COMPLIANCE_AUDITOR,
+  // ]);
 
   const scenario = useUIStore((s) =>
     loanId ? (s.servicingScenarioByLoan[loanId] ?? "base") : "base"
@@ -224,12 +224,12 @@ export function LoanTrading() {
   const recompute = useTradingRecompute(loanId ?? null);
   const esgQ = useEsg(loanId ?? null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (loanId) setActiveLoanId(loanId);
   }, [loanId, setActiveLoanId]);
 
   // Auto-refresh after recompute (simple poll for demo)
-  React.useEffect(() => {
+  useEffect(() => {
     if (recompute.isSuccess && !demoMode) {
       const timerId = setTimeout(() => {
         tradingSummary.refetch();
@@ -238,19 +238,21 @@ export function LoanTrading() {
     }
   }, [recompute.isSuccess, demoMode, tradingSummary]);
 
-  const baseScore = React.useMemo(() => {
+  const baseScore = useMemo(() => {
     const id = loanId ?? "";
     const row = portfolioQ.data?.loans.find((l) => l.id === id);
     return row?.tradeReadyScore ?? 80; // default demo base
   }, [portfolioQ.data, loanId]);
 
-  const covenantStatuses = React.useMemo(() => {
+  const covenantStatuses = useMemo(() => {
     if (!servicingQ.data) return [] as CovenantStatus[];
-    const covs = enrichCovenants(servicingQ.data, scenario);
+    // enrichCovenants expects ServicingPayload with obligations
+    const payload = { ...servicingQ.data, obligations: (servicingQ.data as any).obligations || [] } as any;
+    const covs = enrichCovenants(payload, scenario);
     return covs.map((c) => c.status);
   }, [servicingQ.data, scenario]);
 
-  const scoreModel = React.useMemo(() => {
+  const scoreModel = useMemo(() => {
     // Use live trading summary when available (demoMode OFF)
     if (!demoMode && tradingSummary.data) {
       const score = tradingSummary.data.score;
@@ -266,15 +268,15 @@ export function LoanTrading() {
     return { score, tier, penalty, breach, watch };
   }, [demoMode, tradingSummary.data, baseScore, covenantStatuses]);
 
-  const evidenceCoverage = React.useMemo(() => {
+  const evidenceCoverage = useMemo(() => {
     if (!esgQ.data) return null;
     return computeEsgScorecard(esgQ.data).verifiedCoveragePct;
   }, [esgQ.data]);
 
-  const checklist = React.useMemo(() => {
+  const checklist = useMemo(() => {
     // Use live trading summary when available (demoMode OFF)
     if (!demoMode && tradingSummary.data) {
-      const items = tradingSummary.data.checklist.map((c) => {
+      const items = tradingSummary.data.checklist.map((c: any) => {
         // Map DONE/OPEN/BLOCKED to PASS/REVIEW/FAIL for statusChip compatibility
         const status: ChecklistStatus = 
           c.status === "DONE" ? "PASS" : 
@@ -293,7 +295,7 @@ export function LoanTrading() {
       });
 
       const counts = items.reduce(
-        (acc, i) => {
+        (acc: Record<string, number>, i: any) => {
           acc[i.status] += 1;
           return acc;
         },
@@ -561,7 +563,7 @@ export function LoanTrading() {
               <div style={{ color: "rgb(var(--danger))" }}>Failed to load checklist.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {checklist?.items.map((c) => {
+                {checklist?.items.map((c: any) => {
                   const chip = statusChip(c.status);
                   return (
                     <button
@@ -703,7 +705,7 @@ export function LoanTrading() {
   );
 }
 
-function Card({ title, value }: { title: string; value: React.ReactNode }) {
+function Card({ title, value }: { title: string; value: ReactNode }) {
   return (
     <div
       style={{

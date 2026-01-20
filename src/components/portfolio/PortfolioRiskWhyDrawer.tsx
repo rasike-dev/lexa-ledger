@@ -7,7 +7,6 @@
  * Facts-first, audit-safe, tenant-isolated.
  */
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ExplainabilityDrawer } from "../explainability/ExplainabilityDrawer";
 import { useUIStore } from "../../app/store/uiStore";
@@ -33,10 +32,7 @@ export function PortfolioRiskWhyDrawer({ portfolioId = 'default', open, onClose 
 
   // UI state
   const verbosity = useUIStore((s) => s.portfolioExplainVerbosity || 'STANDARD');
-  const setVerbosity = (v: any) => {
-    // Store in UIStore when available
-    console.log('Portfolio explain verbosity:', v);
-  };
+  const setVerbosity = useUIStore((s) => s.setPortfolioExplainVerbosity);
 
   // TODO: Wire up data fetching hooks when Portfolio explain endpoints are ready
   // const factsQ = useLatestPortfolioRiskFacts(portfolioId);
@@ -50,7 +46,7 @@ export function PortfolioRiskWhyDrawer({ portfolioId = 'default', open, onClose 
     data: null, 
     isPending: false, 
     error: null,
-    mutateAsync: async (v: any) => {}
+    mutateAsync: async (_v: any) => {}
   };
 
   const facts: any = factsQ.data;
@@ -103,7 +99,7 @@ export function PortfolioRiskWhyDrawer({ portfolioId = 'default', open, onClose 
       }}
       result={result}
       error={explainM.error}
-      isEmpty={!facts || factsQ.error}
+      isEmpty={!facts || !!factsQ.error}
       onCopyResult={() => navigator.clipboard.writeText(JSON.stringify(result, null, 2))}
       onViewAuditTrail={() =>
         navigate(`/audit?entityType=PORTFOLIO&entityId=${portfolioId}&module=PORTFOLIO&action=EXPLAIN_RISK`)

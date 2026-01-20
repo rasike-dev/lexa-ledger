@@ -719,19 +719,17 @@ model PortfolioRiskExplanation {
 // Impact Detection (Week 3 - Track C Step C2)
 // ============================================================================
 
-/**
- * Impact Event
- * 
- * Records when a source change (Document/Amendment) affects downstream facts.
- * Enables audit trail of change propagation and impact graph visualization.
- * 
- * Flow:
- * 1. Source changes (Document updated)
- * 2. ImpactService detects affected targets
- * 3. ImpactEvent persisted (audit trail)
- * 4. Recompute jobs enqueued for targets
- * 5. Drift detection → explanation recompute (Track B)
- */
+// Impact Event
+// 
+// Records when a source change (Document/Amendment) affects downstream facts.
+// Enables audit trail of change propagation and impact graph visualization.
+// 
+// Flow:
+// 1. Source changes (Document updated)
+// 2. ImpactService detects affected targets
+// 3. ImpactEvent persisted (audit trail)
+// 4. Recompute jobs enqueued for targets
+// 5. Drift detection → explanation recompute (Track B)
 model ImpactEvent {
   id            String   @id @default(cuid())
   tenantId      String

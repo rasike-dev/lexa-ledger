@@ -1,17 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const TENANT_ID = "acme-capital-001";
 
 /**
- * Seed 5 demo loans with consistent IDs
- * These loans are referenced by other seed scripts
+ * Seed tenant, user, membership, and 5 demo loans with consistent IDs
+ * These are the foundation for all other seed scripts
  */
 async function main() {
-  console.log("🌱 Seeding demo loans...\n");
+  console.log("🌱 Seeding tenant, user, and demo loans...\n");
 
-  // Ensure tenant exists
+  // 1) Create or get Tenant with consistent ID
   let tenant = await prisma.tenant.findUnique({
     where: { id: TENANT_ID },
   });
@@ -27,6 +27,22 @@ async function main() {
   } else {
     console.log(`✓ Tenant ${TENANT_ID} already exists`);
   }
+
+  // 2) Create or get Dev User
+  const user = await prisma.user.upsert({
+    where: { email: "dev@lexa.local" },
+    update: { name: "dev-user" },
+    create: { email: "dev@lexa.local", name: "dev-user" },
+  });
+  console.log(`✓ User: ${user.email}`);
+
+  // 3) Create membership as ORG_ADMIN
+  await prisma.membership.upsert({
+    where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
+    update: { role: UserRole.ORG_ADMIN },
+    create: { tenantId: tenant.id, userId: user.id, role: UserRole.ORG_ADMIN },
+  });
+  console.log(`✓ Membership: ${user.email} → ${tenant.id} (ORG_ADMIN)\n`);
 
   // Define the 5 demo loans
   const loans = [

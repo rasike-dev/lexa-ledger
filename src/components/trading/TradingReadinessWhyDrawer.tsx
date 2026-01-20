@@ -5,7 +5,6 @@
  * Facts-first, audit-safe, tenant-isolated.
  */
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ExplainabilityDrawer } from "../explainability/ExplainabilityDrawer";
 import { buildTradingReadinessAuditLink } from "../../utils/auditLink";
@@ -96,7 +95,7 @@ export function TradingReadinessWhyDrawer({ loanId, open, onClose }: Props) {
       }}
       result={result}
       error={explainM.error}
-      isEmpty={!facts || factsQ.error}
+      isEmpty={!facts || !!factsQ.error}
       onCopyResult={() => navigator.clipboard.writeText(JSON.stringify(result, null, 2))}
       onViewAuditTrail={() =>
         navigate(buildTradingReadinessAuditLink({ loanId, factHash: facts?.factHash }))

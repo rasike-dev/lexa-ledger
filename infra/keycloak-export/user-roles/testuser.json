@@ -1,0 +1,10 @@
+{
+  "realmMappings" : [ {
+    "id" : "3b764bb8-e071-4465-a9ab-2f70516319b1",
+    "name" : "default-roles-lexa-ledger",
+    "description" : "${role_default-roles}",
+    "composite" : true,
+    "clientRole" : false,
+    "containerId" : "fc808af9-8860-4ef5-9735-80f84a03c3f1"
+  } ]
+}

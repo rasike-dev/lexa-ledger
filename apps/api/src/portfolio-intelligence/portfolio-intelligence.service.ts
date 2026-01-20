@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { computeFactHash } from '../trading-readiness-facts/fact-hash';
+import { logApiError } from '../common/error-logger';
 
 /**
  * Portfolio Intelligence Service
@@ -30,11 +31,12 @@ export class PortfolioIntelligenceService {
    * @returns Snapshot + drift detection flag
    */
   async computeAndPersist(asOfDate: Date, correlationId?: string) {
-    // Get tenantId from Prisma context
-    const tenantId = (this.prisma as any).tenantId?.();
-    if (!tenantId) {
-      throw new Error('Tenant context missing for portfolio fact computation');
-    }
+    try {
+      // Get tenantId from Prisma context
+      const tenantId = (this.prisma as any).tenantId?.();
+      if (!tenantId) {
+        throw new Error('Tenant context missing for portfolio fact computation');
+      }
 
     // B8.2: Fetch previous latest snapshot for drift detection
     const prevSnapshot = await this.prisma.portfolioRiskFactSnapshot.findFirst({
@@ -134,7 +136,15 @@ export class PortfolioIntelligenceService {
       });
     }
 
-    return { snapshot: row, drifted };
+      return { snapshot: row, drifted };
+    } catch (error) {
+      logApiError(error, {
+        component: 'PortfolioIntelligenceService',
+        event: 'compute_and_persist_failed',
+        correlationId,
+      });
+      throw new InternalServerErrorException("Failed to compute portfolio risk snapshot");
+    }
   }
 
   /**
@@ -143,14 +153,22 @@ export class PortfolioIntelligenceService {
    * @returns Latest snapshot or null
    */
   async latest() {
-    const tenantId = (this.prisma as any).tenantId?.();
-    if (!tenantId) {
-      throw new Error('Tenant context missing');
-    }
+    try {
+      const tenantId = (this.prisma as any).tenantId?.();
+      if (!tenantId) {
+        throw new Error('Tenant context missing');
+      }
 
-    return this.prisma.portfolioRiskFactSnapshot.findFirst({
-      where: { tenantId },
-      orderBy: { computedAt: 'desc' },
-    });
+      return this.prisma.portfolioRiskFactSnapshot.findFirst({
+        where: { tenantId },
+        orderBy: { computedAt: 'desc' },
+      });
+    } catch (error) {
+      logApiError(error, {
+        component: 'PortfolioIntelligenceService',
+        event: 'get_latest_failed',
+      });
+      throw new InternalServerErrorException("Failed to retrieve latest portfolio snapshot");
+    }
   }
 }

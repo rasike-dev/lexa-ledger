@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 import { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
@@ -7,6 +7,7 @@ import { DocumentType } from "@prisma/client";
 import { TenantContext } from "../tenant/tenant-context";
 import { AuditService } from "../audit/audit.service";
 import { ImpactService } from "../ops/impact/impact.service";
+import { logApiError } from "../common/error-logger";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -42,105 +43,172 @@ export class DocumentsService {
     const { loanId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
-    if (!loan) throw new NotFoundException("Loan not found");
+    try {
+      const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
+      if (!loan) throw new NotFoundException("Loan not found");
 
-    const docType = params.type ?? DocumentType.OTHER;
-    const title = params.title?.trim() || file.originalname || "Untitled";
+      const docType = params.type ?? DocumentType.OTHER;
+      const title = params.title?.trim() || file.originalname || "Untitled";
 
-    // Create or reuse a Document container per (loanId, title, type) - simple v1
-    // Later: explicit doc creation + versions; for now upload creates container if needed.
-    const document = await this.prisma.document.create({
-      data: { loanId, type: docType, title } as any, // tenantId injected by Prisma extension
-    });
+      // Create or reuse a Document container per (loanId, title, type) - simple v1
+      // Later: explicit doc creation + versions; for now upload creates container if needed.
+      const document = await this.prisma.document.create({
+        data: { loanId, type: docType, title } as any, // tenantId injected by Prisma extension
+      });
 
-    // Determine next version number (v1: always 1 since new document created)
-    const version = 1;
+      // Determine next version number (v1: always 1 since new document created)
+      const version = 1;
 
-    const checksum = this.checksum(file.buffer);
+      const checksum = this.checksum(file.buffer);
 
-    // Storage key: tenant/loan/document/version/filename
-    const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
-    const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${loanId}/documents/${document.id}/v${version}/${safeName}`;
+      // Storage key: tenant/loan/document/version/filename
+      const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
+      const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${loanId}/documents/${document.id}/v${version}/${safeName}`;
 
-    // Upload to object storage
-    await this.storage.putObject({
-      key: fileKey,
-      body: file.buffer,
-      contentType: file.mimetype || "application/octet-stream",
-    });
+      // Upload to object storage (critical operation - log failures)
+      try {
+        await this.storage.putObject({
+          key: fileKey,
+          body: file.buffer,
+          contentType: file.mimetype || "application/octet-stream",
+        });
+      } catch (storageError) {
+        // If storage fails, try to clean up created document
+        try {
+          await this.prisma.document.delete({ where: { id: document.id } });
+        } catch {
+          // Ignore cleanup errors
+        }
+        throw storageError;
+      }
 
-    const docVersion = await this.prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        version,
-        fileKey,
-        fileName: file.originalname || "document",
-        contentType: file.mimetype || "application/octet-stream",
-        checksum,
-      } as any, // tenantId injected by Prisma extension
-    });
+      const docVersion = await this.prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          version,
+          fileKey,
+          fileName: file.originalname || "document",
+          contentType: file.mimetype || "application/octet-stream",
+          checksum,
+        } as any, // tenantId injected by Prisma extension
+      });
 
-    // Record audit event with enterprise-grade context
-    const ctx = this.auditService.actorFromRequest(params.req);
-    await this.auditService.record({
-      ...ctx,
-      type: "DOCUMENT_UPLOADED",
-      summary: `Uploaded new document container + v${version} for "${title}" (shortcut create+v1)`,
-      evidenceRef: docVersion.id,
-      payload: {
-        mode: "create+v1", // Distinguishes shortcut endpoint from proper versioning
-        loanId,
+      // Record audit event with enterprise-grade context (non-critical, log failures but don't fail request)
+      try {
+        const ctx = this.auditService.actorFromRequest(params.req);
+        await this.auditService.record({
+          ...ctx,
+          type: "DOCUMENT_UPLOADED",
+          summary: `Uploaded new document container + v${version} for "${title}" (shortcut create+v1)`,
+          evidenceRef: docVersion.id,
+          payload: {
+            mode: "create+v1", // Distinguishes shortcut endpoint from proper versioning
+            loanId,
+            documentId: document.id,
+            documentVersionId: docVersion.id,
+            fileKey,
+            fileName: file.originalname,
+            contentType: file.mimetype,
+            fileSize: file.size,
+            checksum,
+          },
+        });
+
+        // Enqueue extraction job with correlation ID for tracing (non-critical, log failures)
+        try {
+          await this.queue.enqueueDocumentExtraction({
+            tenantId: this.tenantContext.tenantId,
+            loanId,
+            documentId: document.id,
+            documentVersionId: docVersion.id,
+            correlationId: ctx.correlationId,
+          });
+        } catch (queueError) {
+          logApiError(queueError, {
+            component: 'DocumentsService',
+            event: 'enqueue_extraction_failed',
+            tenantId: this.tenantContext.tenantId,
+            loanId,
+            documentId: document.id,
+            documentVersionId: docVersion.id,
+          });
+        }
+
+        // C2: Impact detection - document created affects downstream facts (non-critical)
+        try {
+          await this.impactService.onSourceChanged({
+            tenantId: this.tenantContext.tenantId,
+            correlationId: ctx.correlationId,
+            actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
+            sourceType: 'DOCUMENT',
+            sourceId: document.id,
+            sourceAction: 'CREATED',
+            loanId,
+          });
+        } catch (impactError) {
+          logApiError(impactError, {
+            component: 'DocumentsService',
+            event: 'impact_detection_failed',
+            tenantId: this.tenantContext.tenantId,
+            loanId,
+            documentId: document.id,
+          });
+        }
+      } catch (auditError) {
+        logApiError(auditError, {
+          component: 'DocumentsService',
+          event: 'audit_record_failed',
+          tenantId: this.tenantContext.tenantId,
+          loanId,
+          documentId: document.id,
+        });
+      }
+
+      return {
         documentId: document.id,
         documentVersionId: docVersion.id,
         fileKey,
-        fileName: file.originalname,
-        contentType: file.mimetype,
-        fileSize: file.size,
-        checksum,
-      },
-    });
-
-    // Enqueue extraction job with correlation ID for tracing
-    await this.queue.enqueueDocumentExtraction({
-      tenantId: this.tenantContext.tenantId,
-      loanId,
-      documentId: document.id,
-      documentVersionId: docVersion.id,
-      correlationId: ctx.correlationId,
-    });
-
-    // C2: Impact detection - document created affects downstream facts
-    await this.impactService.onSourceChanged({
-      tenantId: this.tenantContext.tenantId,
-      correlationId: ctx.correlationId,
-      actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
-      sourceType: 'DOCUMENT',
-      sourceId: document.id,
-      sourceAction: 'CREATED',
-      loanId,
-    });
-
-    return {
-      documentId: document.id,
-      documentVersionId: docVersion.id,
-      fileKey,
-    };
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      logApiError(error, {
+        component: 'DocumentsService',
+        event: 'upload_for_loan_failed',
+        tenantId: this.tenantContext.tenantId,
+        loanId,
+        fileName: file?.originalname,
+        fileSize: file?.size,
+      });
+      throw new InternalServerErrorException("Failed to upload document");
+    }
   }
 
   async getClausesForVersion(documentVersionId: string) {
-    const clauses = await this.prisma.clause.findMany({
-      where: { documentVersionId } as any, // tenantId injected by Prisma extension
-      orderBy: { clauseRef: "asc" } as any, // tenantId injected by Prisma extension
-    });
+    try {
+      const clauses = await this.prisma.clause.findMany({
+        where: { documentVersionId } as any, // tenantId injected by Prisma extension
+        orderBy: { clauseRef: "asc" } as any, // tenantId injected by Prisma extension
+      });
 
-    return clauses.map((c) => ({
-      id: c.id,
-      clauseRef: c.clauseRef,
-      title: c.title,
-      text: c.text,
-      riskTags: c.riskTags,
-    }));
+      return clauses.map((c) => ({
+        id: c.id,
+        clauseRef: c.clauseRef,
+        title: c.title,
+        text: c.text,
+        riskTags: c.riskTags,
+      }));
+    } catch (error) {
+      logApiError(error, {
+        component: 'DocumentsService',
+        event: 'get_clauses_failed',
+        tenantId: this.tenantContext.tenantId,
+        documentVersionId,
+      });
+      throw new InternalServerErrorException("Failed to retrieve clauses");
+    }
   }
 
   async listLoanDocuments(params: { loanId: string }) {
@@ -201,33 +269,58 @@ export class DocumentsService {
     const title = params.title?.trim();
     if (!title) throw new BadRequestException("title is required");
 
-    const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
-    if (!loan) throw new NotFoundException("Loan not found");
+    try {
+      const loan = await this.prisma.loan.findFirst({ where: { id: loanId } });
+      if (!loan) throw new NotFoundException("Loan not found");
 
-    const document = await this.prisma.document.create({
-      data: {
+      const document = await this.prisma.document.create({
+        data: {
+          loanId,
+          title,
+          type: params.type ?? DocumentType.OTHER,
+        } as any, // tenantId injected by Prisma extension
+      });
+
+      // Record audit event with enterprise-grade context (non-critical)
+      try {
+        const ctx = this.auditService.actorFromRequest(req);
+        await this.auditService.record({
+          ...ctx,
+          type: "DOCUMENT_CREATED",
+          summary: `Created document container "${title}" for loan ${loanId}`,
+          evidenceRef: document.id,
+          payload: {
+            loanId,
+            documentId: document.id,
+            type: params.type ?? DocumentType.OTHER,
+            title,
+          },
+        });
+      } catch (auditError) {
+        logApiError(auditError, {
+          component: 'DocumentsService',
+          event: 'audit_record_failed',
+          tenantId: this.tenantContext.tenantId,
+          loanId,
+          documentId: document.id,
+        });
+      }
+
+      return { documentId: document.id };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      logApiError(error, {
+        component: 'DocumentsService',
+        event: 'create_document_container_failed',
+        tenantId: this.tenantContext.tenantId,
         loanId,
         title,
-        type: params.type ?? DocumentType.OTHER,
-      } as any, // tenantId injected by Prisma extension
-    });
-
-    // Record audit event with enterprise-grade context
-    const ctx = this.auditService.actorFromRequest(req);
-    await this.auditService.record({
-      ...ctx,
-      type: "DOCUMENT_CREATED",
-      summary: `Created document container "${title}" for loan ${loanId}`,
-      evidenceRef: document.id,
-      payload: {
-        loanId,
-        documentId: document.id,
-        type: params.type ?? DocumentType.OTHER,
-        title,
-      },
-    });
-
-    return { documentId: document.id };
+      });
+      throw new InternalServerErrorException("Failed to create document container");
+    }
   }
 
   /**
@@ -246,84 +339,142 @@ export class DocumentsService {
     const { documentId, file } = params;
     if (!file) throw new BadRequestException("Missing file");
 
-    const document = await this.prisma.document.findFirst({
-      where: { id: documentId } as any, // tenantId injected by Prisma extension
-    });
-    if (!document) throw new NotFoundException("Document not found");
+    try {
+      const document = await this.prisma.document.findFirst({
+        where: { id: documentId } as any, // tenantId injected by Prisma extension
+      });
+      if (!document) throw new NotFoundException("Document not found");
 
-    const latest = await this.prisma.documentVersion.findFirst({
-      where: { documentId } as any, // tenantId injected by Prisma extension
-      orderBy: { version: "desc" } as any, // tenantId injected by Prisma extension
-    });
+      const latest = await this.prisma.documentVersion.findFirst({
+        where: { documentId } as any, // tenantId injected by Prisma extension
+        orderBy: { version: "desc" } as any, // tenantId injected by Prisma extension
+      });
 
-    const version = (latest?.version ?? 0) + 1;
+      const version = (latest?.version ?? 0) + 1;
 
-    const checksum = this.checksum(file.buffer);
-    const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
-    const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${document.loanId}/documents/${document.id}/v${version}/${safeName}`;
+      const checksum = this.checksum(file.buffer);
+      const safeName = (file.originalname || "document").replace(/[^\w.\-]+/g, "_");
+      const fileKey = `tenants/${this.tenantContext.tenantId}/loans/${document.loanId}/documents/${document.id}/v${version}/${safeName}`;
 
-    await this.storage.putObject({
-      key: fileKey,
-      body: file.buffer,
-      contentType: file.mimetype || "application/octet-stream",
-    });
+      // Upload to object storage (critical operation)
+      try {
+        await this.storage.putObject({
+          key: fileKey,
+          body: file.buffer,
+          contentType: file.mimetype || "application/octet-stream",
+        });
+      } catch (storageError) {
+        logApiError(storageError, {
+          component: 'DocumentsService',
+          event: 'storage_upload_failed',
+          tenantId: this.tenantContext.tenantId,
+          documentId,
+          fileKey,
+          fileSize: file.size,
+        });
+        throw storageError;
+      }
 
-    const docVersion = await this.prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        version,
-        fileKey,
-        fileName: file.originalname || "document",
-        contentType: file.mimetype || "application/octet-stream",
-        checksum,
-      } as any, // tenantId injected by Prisma extension
-    });
+      const docVersion = await this.prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          version,
+          fileKey,
+          fileName: file.originalname || "document",
+          contentType: file.mimetype || "application/octet-stream",
+          checksum,
+        } as any, // tenantId injected by Prisma extension
+      });
 
-    // Record audit event with enterprise-grade context
-    const ctx = this.auditService.actorFromRequest(params.req);
-    await this.auditService.record({
-      ...ctx,
-      type: "DOCUMENT_VERSION_UPLOADED",
-      summary: `Uploaded "${document.title}" v${version}`,
-      evidenceRef: docVersion.id,
-      payload: {
-        loanId: document.loanId,
+      // Record audit event and enqueue job (non-critical, log failures but don't fail request)
+      try {
+        const ctx = this.auditService.actorFromRequest(params.req);
+        await this.auditService.record({
+          ...ctx,
+          type: "DOCUMENT_VERSION_UPLOADED",
+          summary: `Uploaded "${document.title}" v${version}`,
+          evidenceRef: docVersion.id,
+          payload: {
+            loanId: document.loanId,
+            documentId: document.id,
+            documentVersionId: docVersion.id,
+            version,
+            fileKey,
+            fileName: file.originalname,
+            contentType: file.mimetype,
+            fileSize: file.size,
+            checksum,
+          },
+        });
+
+        // Enqueue extraction for this version with correlation ID for tracing
+        try {
+          await this.queue.enqueueDocumentExtraction({
+            tenantId: this.tenantContext.tenantId,
+            loanId: document.loanId,
+            documentId: document.id,
+            documentVersionId: docVersion.id,
+            correlationId: ctx.correlationId,
+          });
+        } catch (queueError) {
+          logApiError(queueError, {
+            component: 'DocumentsService',
+            event: 'enqueue_extraction_failed',
+            tenantId: this.tenantContext.tenantId,
+            documentId,
+            documentVersionId: docVersion.id,
+          });
+        }
+
+        // C2: Impact detection - document version updated affects downstream facts
+        try {
+          await this.impactService.onSourceChanged({
+            tenantId: this.tenantContext.tenantId,
+            correlationId: ctx.correlationId,
+            actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
+            sourceType: 'DOCUMENT',
+            sourceId: document.id,
+            sourceAction: 'UPDATED',
+            loanId: document.loanId,
+          });
+        } catch (impactError) {
+          logApiError(impactError, {
+            component: 'DocumentsService',
+            event: 'impact_detection_failed',
+            tenantId: this.tenantContext.tenantId,
+            documentId,
+          });
+        }
+      } catch (auditError) {
+        logApiError(auditError, {
+          component: 'DocumentsService',
+          event: 'audit_record_failed',
+          tenantId: this.tenantContext.tenantId,
+          documentId,
+          documentVersionId: docVersion.id,
+        });
+      }
+
+      return {
         documentId: document.id,
         documentVersionId: docVersion.id,
-        version,
         fileKey,
-        fileName: file.originalname,
-        contentType: file.mimetype,
-        fileSize: file.size,
-        checksum,
-      },
-    });
-
-    // Enqueue extraction for this version with correlation ID for tracing
-    await this.queue.enqueueDocumentExtraction({
-      tenantId: this.tenantContext.tenantId,
-      loanId: document.loanId,
-      documentId: document.id,
-      documentVersionId: docVersion.id,
-      correlationId: ctx.correlationId,
-    });
-
-    // C2: Impact detection - document version updated affects downstream facts
-    await this.impactService.onSourceChanged({
-      tenantId: this.tenantContext.tenantId,
-      correlationId: ctx.correlationId,
-      actorUserId: ctx.actor.type === 'USER' ? ctx.actor.userId : undefined,
-      sourceType: 'DOCUMENT',
-      sourceId: document.id,
-      sourceAction: 'UPDATED',
-      loanId: document.loanId,
-    });
-
-    return {
-      documentId: document.id,
-      documentVersionId: docVersion.id,
-      fileKey,
-    };
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      logApiError(error, {
+        component: 'DocumentsService',
+        event: 'upload_new_version_failed',
+        tenantId: this.tenantContext.tenantId,
+        documentId,
+        fileName: file?.originalname,
+        fileSize: file?.size,
+      });
+      throw new InternalServerErrorException("Failed to upload document version");
+    }
   }
 }
 

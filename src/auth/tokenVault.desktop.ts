@@ -28,8 +28,15 @@ const REFRESH_KEY = "oidc.refresh_token";
 // Non-sensitive preference store (for vault password)
 // NOTE: For hackathon/demo, vault password is stored here for persistence.
 // Best practice: store vault password in OS keychain (keytar, etc.)
-const PREFS = new Store("prefs.json");
+let PREFS: Store | null = null;
 const VAULT_PW_KEY = "stronghold.vault_password";
+
+async function getPrefsStore(): Promise<Store> {
+  if (!PREFS) {
+    PREFS = await Store.load("prefs.json");
+  }
+  return PREFS;
+}
 
 /**
  * Get or create vault password (per-install secret)
@@ -40,15 +47,16 @@ const VAULT_PW_KEY = "stronghold.vault_password";
  * Future enhancement: Use OS keychain for vault password.
  */
 async function getOrCreateVaultPassword(): Promise<string> {
-  const existing = await PREFS.get<string>(VAULT_PW_KEY);
+  const prefs = await getPrefsStore();
+  const existing = await prefs.get<string>(VAULT_PW_KEY);
   if (existing) {
     return existing;
   }
 
   // Generate new per-install password
   const pw = crypto.randomUUID();
-  await PREFS.set(VAULT_PW_KEY, pw);
-  await PREFS.save();
+  await prefs.set(VAULT_PW_KEY, pw);
+  await prefs.save();
   
   console.log('[TokenVault] Generated new vault password');
   return pw;

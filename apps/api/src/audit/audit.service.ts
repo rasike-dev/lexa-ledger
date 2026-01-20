@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Request } from 'express';
+import { logApiError } from '../common/error-logger';
 
 /**
  * Actor type discriminators for audit events
@@ -74,31 +75,45 @@ export class AuditService {
     ip?: string | null;
     userAgent?: string | null;
   }) {
-    const actorType = opts.actor.type;
-    const actorUserId = actorType === 'USER' ? opts.actor.userId : null;
-    const actorClientId = actorType === 'SERVICE' ? opts.actor.clientId : null;
-    const actorRoles = actorType === 'USER' ? opts.actor.roles : [];
+    try {
+      const actorType = opts.actor.type;
+      const actorUserId = actorType === 'USER' ? opts.actor.userId : null;
+      const actorClientId = actorType === 'SERVICE' ? opts.actor.clientId : null;
+      const actorRoles = actorType === 'USER' ? opts.actor.roles : [];
 
-    return this.prisma.auditEvent.create({
-      data: {
+      return await this.prisma.auditEvent.create({
+        data: {
+          tenantId: opts.tenantId,
+          type: opts.type,
+          summary: opts.summary,
+          evidenceRef: opts.evidenceRef ?? null,
+          payload: opts.payload ?? null,
+          
+          // Actor context (compliance-grade)
+          actorType,
+          actorUserId,
+          actorClientId,
+          actorRoles,
+          
+          // Request tracing (forensics)
+          correlationId: opts.correlationId ?? null,
+          ip: opts.ip ?? null,
+          userAgent: opts.userAgent ?? null,
+        },
+      });
+    } catch (error) {
+      // Audit failures are critical - log but don't fail the request
+      logApiError(error, {
+        component: 'AuditService',
+        event: 'audit_record_failed',
         tenantId: opts.tenantId,
-        type: opts.type,
-        summary: opts.summary,
-        evidenceRef: opts.evidenceRef ?? null,
-        payload: opts.payload ?? null,
-        
-        // Actor context (compliance-grade)
-        actorType,
-        actorUserId,
-        actorClientId,
-        actorRoles,
-        
-        // Request tracing (forensics)
-        correlationId: opts.correlationId ?? null,
-        ip: opts.ip ?? null,
-        userAgent: opts.userAgent ?? null,
-      },
-    });
+        auditType: opts.type,
+        correlationId: opts.correlationId,
+      });
+      // Don't throw - audit failures shouldn't break the application
+      // Return a placeholder to indicate failure
+      return null as any;
+    }
   }
 
   /**

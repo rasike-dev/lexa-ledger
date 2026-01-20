@@ -7,7 +7,6 @@
  * Facts-first, audit-safe, tenant-isolated.
  */
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ExplainabilityDrawer } from "../explainability/ExplainabilityDrawer";
 import { useUIStore } from "../../app/store/uiStore";
@@ -21,7 +20,7 @@ type Props = {
   onClose: () => void;
 };
 
-export function EsgKpiWhyDrawer({ loanId, kpiId, open, onClose }: Props) {
+export function EsgKpiWhyDrawer({ loanId, kpiId: _kpiId, open, onClose }: Props) {
   const navigate = useNavigate();
   
   // Auth & RBAC
@@ -30,10 +29,7 @@ export function EsgKpiWhyDrawer({ loanId, kpiId, open, onClose }: Props) {
 
   // UI state
   const verbosity = useUIStore((s) => s.esgExplainVerbosity || 'STANDARD');
-  const setVerbosity = (v: any) => {
-    // Store in UIStore when available
-    console.log('ESG explain verbosity:', v);
-  };
+  const setVerbosity = useUIStore((s) => s.setEsgExplainVerbosity);
 
   // TODO: Wire up data fetching hooks when ESG explain endpoints are ready
   // const factsQ = useLatestEsgKpiFacts(loanId, kpiId);
@@ -47,7 +43,7 @@ export function EsgKpiWhyDrawer({ loanId, kpiId, open, onClose }: Props) {
     data: null, 
     isPending: false, 
     error: null,
-    mutateAsync: async (v: any) => {}
+    mutateAsync: async (_v: any) => {}
   };
 
   const facts: any = factsQ.data;
@@ -96,7 +92,7 @@ export function EsgKpiWhyDrawer({ loanId, kpiId, open, onClose }: Props) {
       }}
       result={result}
       error={explainM.error}
-      isEmpty={!facts || factsQ.error}
+      isEmpty={!facts || !!factsQ.error}
       onCopyResult={() => navigator.clipboard.writeText(JSON.stringify(result, null, 2))}
       onViewAuditTrail={() =>
         navigate(`/audit?entityType=LOAN&entityId=${loanId}&module=ESG&action=EXPLAIN_KPI`)

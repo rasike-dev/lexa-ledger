@@ -22,7 +22,7 @@
     "worker:test": "pnpm --dir apps/worker test",
     "prisma:migrate": "pnpm --dir apps/api prisma migrate dev",
     "prisma:studio": "pnpm --dir apps/api prisma studio",
-    "db:seed": "pnpm --dir apps/api db:seed",
+    "db:seed": "pnpm --dir apps/api seed:all",
     "dev:all": "pnpm infra:up && pnpm -r --parallel --filter ./apps/api --filter ./apps/worker dev & pnpm dev"
   },
   "dependencies": {
