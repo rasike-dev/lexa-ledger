@@ -102,6 +102,8 @@ function validateEnvVars() {
   const required = [
     'DATABASE_URL',
     'REDIS_URL',
+    'KEYCLOAK_ISSUER',
+    'KEYCLOAK_JWKS_URI',
   ];
   
   const optional = [
@@ -109,8 +111,6 @@ function validateEnvVars() {
     'S3_BUCKET',
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
-    'KEYCLOAK_ISSUER',
-    'KEYCLOAK_JWKS_URI',
   ];
   
   const missing: string[] = [];
@@ -122,6 +122,11 @@ function validateEnvVars() {
   
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:', missing.join(', '));
+    if (missing.includes('KEYCLOAK_ISSUER') || missing.includes('KEYCLOAK_JWKS_URI')) {
+      console.error('💡 JWT authentication requires Keycloak configuration:');
+      console.error('   KEYCLOAK_ISSUER=http://localhost:8088/realms/lexa-ledger');
+      console.error('   KEYCLOAK_JWKS_URI=http://localhost:8088/realms/lexa-ledger/protocol/openid-connect/certs');
+    }
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
   

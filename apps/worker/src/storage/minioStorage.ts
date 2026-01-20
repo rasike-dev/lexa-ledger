@@ -6,15 +6,29 @@ function must(name: string): string {
   return v;
 }
 
-const client = new Client({
-  endPoint: must("MINIO_ENDPOINT").replace(/^https?:\/\//, ""),
-  port: Number(process.env.MINIO_PORT ?? "9000"),
-  useSSL: (process.env.MINIO_SSL ?? "false") === "true",
-  accessKey: must("MINIO_ACCESS_KEY"),
-  secretKey: must("MINIO_SECRET_KEY"),
-});
+// Lazy initialization - only access env vars when client is first used
+let client: Client | null = null;
+let bucket: string | null = null;
 
-const bucket = must("MINIO_BUCKET");
+function getClient(): Client {
+  if (!client) {
+    client = new Client({
+      endPoint: must("MINIO_ENDPOINT").replace(/^https?:\/\//, ""),
+      port: Number(process.env.MINIO_PORT ?? "9000"),
+      useSSL: (process.env.MINIO_SSL ?? "false") === "true",
+      accessKey: must("MINIO_ACCESS_KEY"),
+      secretKey: must("MINIO_SECRET_KEY"),
+    });
+  }
+  return client;
+}
+
+function getBucket(): string {
+  if (!bucket) {
+    bucket = must("MINIO_BUCKET");
+  }
+  return bucket;
+}
 
 export const minioStorage = {
   async getObject({ key }: { key: string }, retries = 3): Promise<Buffer> {
@@ -23,13 +37,17 @@ export const minioStorage = {
       throw new Error(`Invalid storage key: ${key}`);
     }
 
+    // Lazy initialization - access env vars only when function is called
+    const minioClient = getClient();
+    const minioBucket = getBucket();
+
     let lastError: Error | null = null;
     
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         // Get stream with timeout
         const stream = await Promise.race([
-          client.getObject(bucket, key),
+          minioClient.getObject(minioBucket, key),
           new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error('MinIO getObject timeout (30s)')), 30000)
           )
