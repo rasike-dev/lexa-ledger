@@ -2,6 +2,8 @@ import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { PrismaClient, ESGVerificationStatus } from "@prisma/client";
 import { SERVICE_CLIENT_ID, SERVICE_ACTOR_TYPE } from "./service-identity";
+import { logError, logJobFailure } from "./utils/error-logger";
+import { logJobFailureWithRetryInfo } from "./utils/retry-safeguard";
 
 function must(name: string): string {
   const v = process.env[name];
@@ -78,83 +80,128 @@ export function startEsgVerifyWorker(storage: Storage): Worker<JobData> {
         );
       }
 
-      const evidence = await prisma.eSGEvidence.findFirst({
-        where: { id: evidenceId, tenantId, loanId },
-      });
-      if (!evidence) {
-        throw new Error(`Evidence not found: ${evidenceId} for loan ${loanId} in tenant ${tenantId}`);
-      }
+      try {
+        const evidence = await prisma.eSGEvidence.findFirst({
+          where: { id: evidenceId, tenantId, loanId },
+        });
+        if (!evidence) {
+          throw new Error(`Evidence not found: ${evidenceId} for loan ${loanId} in tenant ${tenantId}`);
+        }
 
-      // Download file (optional but good for v1 sanity checks)
-      const buf = await storage.getObject({ key: evidence.fileKey });
-      const bytes = buf.length;
+        // Download file (optional but good for v1 sanity checks)
+        const buf = await storage.getObject({ key: evidence.fileKey });
+        const bytes = buf.length;
 
-      // Pick latest verification row (should exist as PENDING)
-      const latest = await prisma.eSGVerification.findFirst({
-        where: { tenantId, loanId, evidenceId },
-        orderBy: { checkedAt: "desc" },
-      });
+        // Pick latest verification row (should exist as PENDING)
+        const latest = await prisma.eSGVerification.findFirst({
+          where: { tenantId, loanId, evidenceId },
+          orderBy: { checkedAt: "desc" },
+        });
 
-      const result = simpleVerifyRules({
-        title: evidence.title,
-        contentType: evidence.contentType,
-        bytes,
-        checksum: evidence.checksum,
-      });
+        const result = simpleVerifyRules({
+          title: evidence.title,
+          contentType: evidence.contentType,
+          bytes,
+          checksum: evidence.checksum,
+        });
 
-      if (latest) {
-        await prisma.eSGVerification.update({
-          where: { id: latest.id },
+        if (latest) {
+          await prisma.eSGVerification.update({
+            where: { id: latest.id },
+            data: {
+              status: result.status,
+              confidence: result.confidence,
+              notes: result.notes,
+              checkedAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.eSGVerification.create({
+            data: {
+              tenantId,
+              loanId,
+              evidenceId,
+              status: result.status,
+              confidence: result.confidence,
+              notes: result.notes,
+            },
+          });
+        }
+
+        await prisma.auditEvent.create({
           data: {
-            status: result.status,
-            confidence: result.confidence,
-            notes: result.notes,
-            checkedAt: new Date(),
+            tenantId,
+            actorId: null, // No user for SERVICE actions
+            actorType: SERVICE_ACTOR_TYPE,
+            actorClientId: SERVICE_CLIENT_ID,
+            type: "ESG_EVIDENCE_VERIFIED",
+            summary: `ESG evidence verified: ${result.status} (${Math.round(result.confidence * 100)}%)`,
+            evidenceRef: evidenceId,
+            payload: {
+              loanId,
+              evidenceId,
+              status: result.status,
+              confidence: result.confidence,
+              notes: result.notes,
+              fileKey: evidence.fileKey,
+              contentType: evidence.contentType,
+              bytes,
+            },
           },
         });
-      } else {
-        await prisma.eSGVerification.create({
-          data: {
+
+        await prisma.loan.update({ where: { id: loanId }, data: { lastUpdatedAt: new Date() } });
+
+        return { evidenceId, status: result.status, confidence: result.confidence };
+      } catch (error) {
+        // Log error with retry information
+        logJobFailureWithRetryInfo(
+          error,
+          job,
+          'esg.verify',
+          {
+            queueName: 'esg.verify',
             tenantId,
             loanId,
             evidenceId,
-            status: result.status,
-            confidence: result.confidence,
-            notes: result.notes,
-          },
-        });
+          }
+        );
+        
+        // Re-throw to let BullMQ handle retry (if attempts remaining)
+        throw error;
       }
-
-      await prisma.auditEvent.create({
-        data: {
-          tenantId,
-          actorId: null, // No user for SERVICE actions
-          actorType: SERVICE_ACTOR_TYPE,
-          actorClientId: SERVICE_CLIENT_ID,
-          type: "ESG_EVIDENCE_VERIFIED",
-          summary: `ESG evidence verified: ${result.status} (${Math.round(result.confidence * 100)}%)`,
-          evidenceRef: evidenceId,
-          payload: {
-            loanId,
-            evidenceId,
-            status: result.status,
-            confidence: result.confidence,
-            notes: result.notes,
-            fileKey: evidence.fileKey,
-            contentType: evidence.contentType,
-            bytes,
-          },
-        },
-      });
-
-      await prisma.loan.update({ where: { id: loanId }, data: { lastUpdatedAt: new Date() } });
-
-      return { evidenceId, status: result.status, confidence: result.confidence };
     },
     { connection: connection as any },
   );
 
-  // eslint-disable-next-line no-console
+  // Add error handlers
+  worker.on('error', (error) => {
+    logError(error, {
+      component: 'Worker',
+      workerName: 'esg.verify',
+      event: 'worker_error',
+    });
+  });
+
+  worker.on('failed', (job, err) => {
+    if (!job) return;
+    
+    const jobData = job.data as JobData | undefined;
+    logJobFailure(
+      err,
+      'esg.verify',
+      job.id,
+      job.name,
+      job.data,
+      {
+        queueName: 'esg.verify',
+        tenantId: jobData?.tenantId,
+        loanId: jobData?.loanId,
+        evidenceId: jobData?.evidenceId,
+      }
+    );
+  });
+
   console.log("🧾 Worker listening on queue: esg.verify");
   
   return worker;
